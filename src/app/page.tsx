@@ -1,5 +1,8 @@
+'use client';
+
 import Image from 'next/image';
 import Link from 'next/link';
+import { useState } from 'react';
 import {
   Card,
   CardContent,
@@ -8,11 +11,20 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { newsArticles } from '@/lib/data';
 import { getImageById } from '@/lib/utils';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Search } from 'lucide-react';
 
 export default function Home() {
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const filteredArticles = newsArticles.filter((article) =>
+    article.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    article.excerpt.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    article.source.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <div className="container mx-auto px-4 py-8">
       <section className="text-center mb-12">
@@ -25,8 +37,21 @@ export default function Home() {
         </p>
       </section>
 
+      <section className="mb-8 max-w-lg mx-auto">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder="Search for news articles..."
+            className="w-full glass-input pl-10 text-base"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+      </section>
+
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {newsArticles.map((article) => {
+        {filteredArticles.map((article) => {
           const image = getImageById(article.imageId);
           return (
             <Card
