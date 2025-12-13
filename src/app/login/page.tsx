@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import {
@@ -10,26 +12,68 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { GithubIcon } from '@/components/icons/github-icon';
 import { GoogleIcon } from '@/components/icons/google-icon';
+import { useAuth } from '@/firebase';
+import {
+  GoogleAuthProvider,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+} from 'firebase/auth';
+import { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
+  const auth = useAuth();
+  const { toast } = useToast();
+  const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  const handleGoogleSignIn = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+      toast({ title: 'Success', description: "You've successfully signed in." });
+      router.push('/');
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Uh oh! Something went wrong.',
+        description: error.message,
+      });
+    }
+  };
+
+  const handleEmailSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      toast({ title: 'Success', description: "You've successfully signed in." });
+      router.push('/');
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Uh oh! Something went wrong.',
+        description: error.message,
+      });
+    }
+  };
+
   return (
     <div className="flex min-h-[calc(100vh-theme(spacing.14))] items-center justify-center p-4">
       <Card className="w-full max-w-md glass-card">
         <CardHeader className="text-center">
-          <CardTitle className="font-headline text-2xl">Log In to ScoreCast</CardTitle>
+          <CardTitle className="font-headline text-2xl">
+            Log In to ScoreCast
+          </CardTitle>
           <CardDescription>
             Get back into the game. Your team needs you!
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-4">
-            <Button variant="outline">
-              <GithubIcon className="mr-2 h-4 w-4" />
-              GitHub
-            </Button>
-            <Button variant="outline">
+          <div className="grid grid-cols-1 gap-4">
+            <Button variant="outline" onClick={handleGoogleSignIn}>
               <GoogleIcon className="mr-2 h-4 w-4" />
               Google
             </Button>
@@ -44,25 +88,36 @@ export default function LoginPage() {
               </span>
             </div>
           </div>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="striker@example.com"
-                required
-                className="glass-input"
-              />
+          <form onSubmit={handleEmailSignIn}>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="striker@example.com"
+                  required
+                  className="glass-input"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  required
+                  className="glass-input"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" required className="glass-input" />
-            </div>
-          </div>
-          <Button type="submit" className="w-full mt-6">
-            Log In & Enter the Stadium
-          </Button>
+            <Button type="submit" className="w-full mt-6">
+              Log In & Enter the Stadium
+            </Button>
+          </form>
         </CardContent>
         <CardFooter className="flex justify-center text-sm">
           <p className="text-muted-foreground">
