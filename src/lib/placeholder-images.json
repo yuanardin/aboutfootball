@@ -1,3 +1,100 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "news-1",
+      "description": "A football player celebrating a goal in a packed stadium.",
+      "imageUrl": "https://images.unsplash.com/photo-1607417306748-8479df424735?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxmb290YmFsbCUyMGNlbGVicmF0aW9ufGVufDB8fHx8MTc2NTU3NTMwMXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "football celebration"
+    },
+    {
+      "id": "news-2",
+      "description": "Manager shouting instructions from the sideline.",
+      "imageUrl": "https://images.unsplash.com/photo-1661587538719-b332042e1c92?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxmb290YmFsbCUyMG1hbmFnZXJ8ZW58MHx8fHwxNzY1NjI1NDk1fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "football manager"
+    },
+    {
+      "id": "news-3",
+      "description": "A dramatic shot of a football hitting the back of the net.",
+      "imageUrl": "https://images.unsplash.com/photo-1665413812125-c9f634cef78a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxnb2FsJTIwc2NvcmV8ZW58MHx8fHwxNzY1NjI1NDk1fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "goal score"
+    },
+    {
+      "id": "news-4",
+      "description": "Two players competing for the ball in mid-air.",
+      "imageUrl": "https://images.unsplash.com/photo-1588318073076-7030f7040046?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxmb290YmFsbCUyMGFjdGlvbnxlbnwwfHx8fDE3NjU1NTU3MjB8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "football action"
+    },
+    {
+      "id": "news-5",
+      "description": "Team huddle before a big match.",
+      "imageUrl": "https://images.unsplash.com/photo-1538352886333-5233ad94cb8b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHx0ZWFtJTIwaHVkZGxlfGVufDB8fHx8MTc2NTUxNDY2Nnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "team huddle"
+    },
+    {
+      "id": "news-6",
+      "description": "View of a modern football stadium from the stands.",
+      "imageUrl": "https://images.unsplash.com/photo-1546608235-3310a2494cdf?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxmb290YmFsbCUyMHN0YWRpdW18ZW58MHx8fHwxNzY1NTc1MzAxfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "football stadium"
+    },
+    {
+      "id": "team-logo-1",
+      "description": "Manchester City Logo",
+      "imageUrl": "https://images.unsplash.com/photo-1761315191206-a592f6bdb523?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHx0ZWFtJTIwY3Jlc3R8ZW58MHx8fHwxNzY1NTc3MTQwfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "team crest"
+    },
+    {
+      "id": "team-logo-2",
+      "description": "Arsenal Logo",
+      "imageUrl": "https://images.unsplash.com/photo-1761315191206-a592f6bdb523?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHx0ZWFtJTIwY3Jlc3R8ZW58MHx8fHwxNzY1NTc3MTQwfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "team crest"
+    },
+    {
+      "id": "team-logo-3",
+      "description": "Liverpool Logo",
+      "imageUrl": "https://images.unsplash.com/photo-1761325970487-05c2541653eb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHx0ZWFtJTIwY3Jlc3R8ZW58MHx8fHwxNzY1NTc3MTQwfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "team crest"
+    },
+    {
+      "id": "team-logo-4",
+      "description": "Aston Villa Logo",
+      "imageUrl": "https://images.unsplash.com/photo-1763751626848-47f2393830d2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHx0ZWFtJTIwY3Jlc3R8ZW58MHx8fHwxNzY1NTc3MTQwfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "team crest"
+    },
+    {
+      "id": "team-logo-5",
+      "description": "Tottenham Hotspur Logo",
+      "imageUrl": "https://images.unsplash.com/photo-1763656813028-3eb492fa7bcf?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHx0ZWFtJTIwY3Jlc3R8ZW58MHx8fHwxNzY1NTc3MTQwfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "team crest"
+    },
+    {
+      "id": "team-logo-6",
+      "description": "Chelsea Logo",
+      "imageUrl": "https://images.unsplash.com/photo-1761229320117-24a97501d011?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHx0ZWFtJTIwY3Jlc3R8ZW58MHx8fHwxNzY1NTc3MTQwfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "team crest"
+    },
+    {
+      "id": "team-logo-7",
+      "description": "Newcastle United Logo",
+      "imageUrl": "https://images.unsplash.com/photo-1735713212135-8c295902a245?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHx0ZWFtJTIwY3Jlc3R8ZW58MHx8fHwxNzY1NTc3MTQwfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "team crest"
+    },
+    {
+      "id": "team-logo-8",
+      "description": "Manchester United Logo",
+      "imageUrl": "https://images.unsplash.com/photo-1761325970487-05c2541653eb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHx0ZWFtJTIwY3Jlc3R8ZW58MHx8fHwxNzY1NTc3MTQwfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "team crest"
+    },
+    {
+      "id": "team-logo-9",
+      "description": "Real Madrid Logo",
+      "imageUrl": "https://images.unsplash.com/photo-1761229320117-24a97501d011?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHx0ZWFtJTIwY3Jlc3R8ZW58MHx8fHwxNzY1NTc3MTQwfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "team crest"
+    },
+    {
+      "id": "team-logo-10",
+      "description": "Barcelona Logo",
+      "imageUrl": "https://images.unsplash.com/photo-1759447946445-397b1c034768?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHx0ZWFtJTIwY3Jlc3R8ZW58MHx8fHwxNzY1NTc3MTQwfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "team crest"
+    }
+  ]
 }
