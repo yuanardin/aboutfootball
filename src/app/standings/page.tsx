@@ -1,89 +1,49 @@
-import Image from 'next/image';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
+import type { Metadata } from 'next';
+import { Info } from 'lucide-react';
 import { leagueStandings } from '@/lib/data';
-import { getImageById, cn } from '@/lib/utils';
-import { Card } from '@/components/ui/card';
+import { SectionHeader } from '@/components/football/section-header';
+import { StandingsTable } from '@/components/football/standings-table';
+
+export const metadata: Metadata = {
+  title: 'League Table · Premier League',
+  description: 'Premier League 2023/24 final standings with goal difference and recent form.',
+};
 
 export default function StandingsPage() {
   return (
-    <div className="container mx-auto px-4 py-8">
-      <section className="text-center mb-12">
-        <h1 className="font-headline text-5xl md:text-7xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">
-          League Tables
-        </h1>
-        <p className="text-lg text-muted-foreground mt-4 max-w-2xl mx-auto font-body">
-          See who's topping the charts and who's fighting for survival.
-          The complete Premier League standings.
-        </p>
+    <div className="page-shell py-10 sm:py-14">
+      <section className="flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
+        <div>
+          <p className="eyebrow mb-3">League table</p>
+          <h1 className="text-page-title">Premier League</h1>
+          <p className="mt-4 max-w-xl text-base leading-7 text-muted-foreground">
+            Final standings for the 2023/24 season — positions, goal difference and the last five
+            match results for every club, at a glance.
+          </p>
+        </div>
+        <span className="chip w-fit shrink-0 sm:mb-1">Demo records · 2023/24</span>
       </section>
 
-      <Card className="glass-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[50px] text-center">#</TableHead>
-              <TableHead>Team</TableHead>
-              <TableHead className="text-center">P</TableHead>
-              <TableHead className="text-center">W</TableHead>
-              <TableHead className="text-center">D</TableHead>
-              <TableHead className="text-center">L</TableHead>
-              <TableHead className="text-center">Pts</TableHead>
-              <TableHead className="text-right hidden md:table-cell">Form</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {leagueStandings.map((standing) => {
-              const teamLogo = getImageById(standing.team.logoId);
-              return (
-                <TableRow key={standing.rank}>
-                  <TableCell className="font-medium text-center text-muted-foreground">{standing.rank}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      {teamLogo && (
-                        <Image
-                          src={teamLogo.imageUrl}
-                          alt={teamLogo.description}
-                          width={24}
-                          height={24}
-                          data-ai-hint={teamLogo.imageHint}
-                        />
-                      )}
-                      <span className="font-medium font-headline">{standing.team.name}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-center">{standing.played}</TableCell>
-                  <TableCell className="text-center">{standing.win}</TableCell>
-                  <TableCell className="text-center">{standing.draw}</TableCell>
-                  <TableCell className="text-center">{standing.loss}</TableCell>
-                  <TableCell className="font-bold text-center">{standing.points}</TableCell>
-                  <TableCell className="text-right hidden md:table-cell">
-                    <div className="flex gap-1 justify-end">
-                      {standing.form.map((result, index) => (
-                        <span key={index} className={cn(
-                          'flex items-center justify-center h-5 w-5 rounded-full text-xs font-bold',
-                          result === 'W' && 'bg-green-500/80 text-white',
-                          result === 'D' && 'bg-gray-500/80 text-white',
-                          result === 'L' && 'bg-red-500/80 text-white',
-                        )}>
-                          {result}
-                        </span>
-                      ))}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </Card>
+      <section className="mt-10">
+        <SectionHeader
+          eyebrow="Final standings"
+          title="All clubs"
+          description="Sorted by points, then goal difference. Hover a row to scan a club quickly."
+        />
+        <StandingsTable
+          standings={leagueStandings}
+          title="Premier League"
+          subtitle="2023/24 · final table"
+        />
+
+        <p className="mt-4 flex items-start gap-2 text-sm leading-6 text-muted-foreground">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+          <span>
+            Demo dataset — Premier League 2023/24 final standings for illustration. Live league
+            tables will appear once a football-data provider is connected.
+          </span>
+        </p>
+      </section>
     </div>
   );
 }

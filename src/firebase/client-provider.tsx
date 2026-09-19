@@ -1,25 +1,47 @@
 'use client';
 
-import {
-  FirebaseProvider,
-  type FirebaseProviderProps,
-} from './provider';
-import { initializeFirebase } from '.';
+import { FirebaseProvider } from './provider';
+import { initializeFirebase } from './index';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { useMemo } from 'react';
 
-export function FirebaseClientProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+const REQUIRED_KEYS: readonly string[] = [
+  'NEXT_PUBLIC_FIREBASE_API_KEY',
+  'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN',
+  'NEXT_PUBLIC_FIREBASE_PROJECT_ID',
+  'NEXT_PUBLIC_FIREBASE_APP_ID',
+] as const;
 
+const KEY_PRESENCE: Record<string, boolean> = {
+  NEXT_PUBLIC_FIREBASE_API_KEY: Boolean(process.env.NEXT_PUBLIC_FIREBASE_API_KEY),
+  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: Boolean(process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN),
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID: Boolean(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID),
+  NEXT_PUBLIC_FIREBASE_APP_ID: Boolean(process.env.NEXT_PUBLIC_FIREBASE_APP_ID),
+};
+
+function firebaseConfigured() {
+  // Static env references are required here: `process.env[key]` (dynamic access)
+  // is NOT inlined in client bundles, which would make this always return false
+  // in the browser even when keys are configured.
+  return REQUIRED_KEYS.every((key) => KEY_PRESENCE[key]);
+}
+
+export function FirebaseClientProvider({ children }: { children: React.ReactNode }) {
   const firebaseProps = useMemo(() => {
+    // Graceful degradation: if Firebase config is missing (e.g. local dev without
+    // .env), the rest of the app still renders; auth simply stays disabled.
+    if (!firebaseConfigured()) {
+      return { enabled: false as const };
+    }
+
     const app = initializeFirebase();
-    const auth = getAuth(app);
-    const firestore = getFirestore(app);
-    return { app, auth, firestore };
+    return {
+      enabled: true as const,
+      app,
+      auth: getAuth(app),
+      firestore: getFirestore(app),
+    };
   }, []);
 
   return <FirebaseProvider {...firebaseProps}>{children}</FirebaseProvider>;

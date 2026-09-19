@@ -11,6 +11,8 @@ const schema = z.object({
 export interface FormState {
   message: string;
   summary?: string;
+  title?: string;
+  keyTakeaways?: string[];
   fieldErrors?: Record<string, string[] | undefined>;
 }
 
@@ -24,7 +26,12 @@ export async function handleSummarize(prevState: FormState, formData: FormData):
 
     try {
       const result = await summarizeFootballNews({ articleUrl: validatedData.articleUrl });
-      return { message: "Success", summary: result.summary };
+      return {
+        message: 'Success',
+        summary: result.summary,
+        title: result.title ?? '',
+        keyTakeaways: result.keyTakeaways ?? [],
+      };
     } catch (error) {
       console.error(error);
       return { message: "An error occurred while summarizing the article. The AI model might be unavailable." };

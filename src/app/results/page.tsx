@@ -1,87 +1,180 @@
-import Image from 'next/image';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+'use client';
+
+import { useMemo, useState } from 'react';
+import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { MatchCard } from '@/components/football/match-card';
+import { EmptyState } from '@/components/football/empty-state';
+import { SectionHeader } from '@/components/football/section-header';
 import { matchResults } from '@/lib/data';
-import { getImageById } from '@/lib/utils';
-import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
+
+const longDate = new Intl.DateTimeFormat('en', { weekday: 'long', day: 'numeric', month: 'long' });
+const shortDate = new Intl.DateTimeFormat('en', { weekday: 'short', day: 'numeric', month: 'short' });
 
 export default function ResultsPage() {
+  const resultDates = useMemo(
+    () =>
+      Array.from(
+        new Map(
+          matchResults.map((match) => [Date.parse(match.matchDate), match.matchDate])
+        ).entries()
+      )
+        .sort((a, b) => a[0] - b[0])
+        .map(([, date]) => date),
+    []
+  );
+
+  const todayIndex = resultDates.length - 1;
+  const [dateIndex, setDateIndex] = useState(todayIndex);
+  const [competition, setCompetition] = useState('All competitions');
+  const selectedDate = resultDates[dateIndex];
+
+  const competitions = [
+    'All competitions',
+    ...Array.from(new Set(matchResults.map((match) => match.league))),
+  ];
+
+  const visibleMatches = useMemo(
+    () =>
+      matchResults.filter(
+        (match) =>
+          match.matchDate === selectedDate &&
+          (competition === 'All competitions' || match.league === competition)
+      ),
+    [competition, selectedDate]
+  );
+
+  const dayLabel = useMemo(
+    () =>
+      dateIndex === todayIndex
+        ? 'Latest available'
+        : shortDate.format(new Date(selectedDate)),
+    [dateIndex, selectedDate, todayIndex]
+  );
+
+  const resetFilters = () => {
+    setDateIndex(todayIndex);
+    setCompetition('All competitions');
+  };
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      <section className="text-center mb-12">
-        <h1 className="font-headline text-5xl md:text-7xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">
-          Match Day Central
-        </h1>
-        <p className="text-lg text-muted-foreground mt-4 max-w-2xl mx-auto font-body">
-          Catch up on all the recent action. Here are the latest scores from
-          around the leagues.
-        </p>
+    <div className="page-shell py-10 sm:py-14">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <section className="max-w-2xl">
+          <p className="eyebrow mb-3">Match centre</p>
+          <h1 className="text-page-title">Results, without the noise.</h1>
+          <p className="mt-4 text-base leading-7 text-muted-foreground">
+            Completed matches grouped by matchday — navigate days and filter by competition.
+          </p>
+        </section>
+        <span className="chip w-fit shrink-0 sm:mb-1">
+          Demo records · Jul 2024
+        </span>
+      </header>
+
+      <section aria-label="Matchday navigation" className="mt-8 sm:mt-10">
+        <div className="flex items-center gap-1 rounded-xl border border-border bg-card/60 p-1.5">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setDateIndex((value) => value - 1)}
+            disabled={dateIndex === 0}
+            aria-label="Previous matchday"
+          >
+            <ChevronLeft aria-hidden="true" />
+          </Button>
+          <div className="min-w-0 flex-1 px-2 text-center">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">
+              Match results
+            </p>
+            <p className="truncate font-headline text-sm font-bold">{dayLabel}</p>
+            <p className="text-xs text-muted-foreground">
+              {visibleMatches.length} {visibleMatches.length === 1 ? 'match' : 'matches'} shown
+            </p>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setDateIndex((value) => value + 1)}
+            disabled={dateIndex === todayIndex}
+            aria-label="Next matchday"
+          >
+            <ChevronRight aria-hidden="true" />
+          </Button>
+        </div>
+
+        <div
+          role="group"
+          aria-label="Filter by competition"
+          className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0"
+        >
+          {competitions.map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => setCompetition(item)}
+              aria-pressed={competition === item}
+              className={cn(
+                'min-h-9 shrink-0 rounded-full border px-4 text-sm font-medium transition',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                competition === item
+                  ? 'border-primary bg-primary text-primary-foreground'
+                  : 'border-border bg-secondary/40 text-muted-foreground hover:border-primary/60 hover:text-foreground'
+              )}
+            >
+              {item}
+            </button>
+          ))}
+        </div>
       </section>
 
-      <div className="max-w-4xl mx-auto space-y-6">
-        {matchResults.map((match) => {
-          const homeLogo = getImageById(match.homeTeam.logoId);
-          const awayLogo = getImageById(match.awayTeam.logoId);
-          return (
-            <Card key={match.id} className="glass-card">
-              <CardHeader className="p-4">
-                <div className="flex justify-between items-center text-xs text-muted-foreground">
-                  <span>{match.league}</span>
-                  <span>{match.matchDate}</span>
-                </div>
-              </CardHeader>
-              <Separator />
-              <CardContent className="p-6">
-                <div className="flex items-center justify-around">
-                  <div className="flex flex-col md:flex-row items-center gap-4 w-2/5 justify-end">
-                    <span className="font-headline text-lg md:text-xl text-right font-semibold">
-                      {match.homeTeam.name}
-                    </span>
-                    {homeLogo && (
-                      <Image
-                        src={homeLogo.imageUrl}
-                        alt={homeLogo.description}
-                        width={40}
-                        height={40}
-                        data-ai-hint={homeLogo.imageHint}
-                      />
-                    )}
-                  </div>
+      <div className="mt-8 space-y-10">
+        {visibleMatches.length ? (
+          Object.entries(
+            visibleMatches.reduce<Record<string, typeof matchResults>>((result, match) => {
+              (result[match.matchDate] ??= []).push(match);
+              return result;
+            }, {})
+          ).map(([date, matches]) => (
+            <section key={date}>
+              <SectionHeader
+                eyebrow="Matchday"
+                title={longDate.format(new Date(date))}
+                description={`${matches.length} ${matches.length === 1 ? 'match' : 'matches'} completed on this day.`}
+              />
+              <div className="space-y-3">
+                {matches.map((match) => (
+                  <MatchCard key={match.id} match={match} />
+                ))}
+              </div>
+            </section>
+          ))
+        ) : (
+          <EmptyState
+            icon={<CalendarDays className="h-5 w-5" aria-hidden="true" />}
+            title="No results for this selection"
+            description={
+              dateIndex === todayIndex
+                ? 'There are no matches in this competition on the latest matchday yet. Results will appear when a football-data source is connected.'
+                : 'No completed matches on this matchday for the selected competition. Try another day or competition.'
+            }
+            action={
+              <Button variant="outline" onClick={resetFilters}>
+                Show latest matchday
+              </Button>
+            }
+          />
+        )}
 
-                  <div className="flex items-center justify-center font-headline text-2xl md:text-4xl font-bold mx-4">
-                    <span>{match.homeTeam.score}</span>
-                    <span className="mx-2">-</span>
-                    <span>{match.awayTeam.score}</span>
-                  </div>
-
-                  <div className="flex flex-col-reverse md:flex-row items-center gap-4 w-2/5 justify-start">
-                    {awayLogo && (
-                      <Image
-                        src={awayLogo.imageUrl}
-                        alt={awayLogo.description}
-                        width={40}
-                        height={40}
-                        data-ai-hint={awayLogo.imageHint}
-                      />
-                    )}
-                    <span className="font-headline text-lg md:text-xl text-left font-semibold">
-                      {match.awayTeam.name}
-                    </span>
-                  </div>
-                </div>
-                <div className="text-center mt-4">
-                  <Badge
-                    className={
-                      match.status === 'FT' ? 'bg-primary/20 text-primary' : ''
-                    }
-                  >
-                    {match.status}
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+        <p className="flex items-start gap-2 text-sm leading-6 text-muted-foreground">
+          <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+          <span>
+            Demo dataset — {matchResults.length} completed matches across {resultDates.length}{' '}
+            {resultDates.length === 1 ? 'matchday' : 'matchdays'}. Live scores will appear once a
+            football-data provider is connected.
+          </span>
+        </p>
       </div>
     </div>
   );

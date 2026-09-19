@@ -5,6 +5,8 @@ export type NewsArticle = {
   source: string;
   date: string;
   imageId: string;
+  category?: string;
+  readTime?: string;
 };
 
 export type MatchResult = {
@@ -23,6 +25,7 @@ export type Standing = {
   win: number;
   draw: number;
   loss: number;
+  gd: number;
   points: number;
   form: ('W' | 'D' | 'L')[];
 };

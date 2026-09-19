@@ -1,98 +1,230 @@
 'use client';
 
-import Image from 'next/image';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useState } from 'react';
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Bot, Radio, Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { newsArticles } from '@/lib/data';
-import { getImageById } from '@/lib/utils';
-import { ArrowRight, Search } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/football/empty-state';
+import { SectionHeader } from '@/components/football/section-header';
+import { MatchCard } from '@/components/football/match-card';
+import { StandingsTable } from '@/components/football/standings-table';
+import { NewsCard } from '@/components/news/news-card';
+import { HeroStory } from '@/components/news/hero-story';
+import { leagueStandings, matchResults, newsArticles } from '@/lib/data';
+import { cn } from '@/lib/utils';
+
+const heroStory = newsArticles[0];
+
+const categories = [
+  'All',
+  ...Array.from(new Set(newsArticles.map((a) => a.category).filter((c): c is string => Boolean(c)))),
+];
 
 export default function Home() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeCategory, setActiveCategory] = useState('All');
 
-  const filteredArticles = newsArticles.filter((article) =>
-    article.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    article.excerpt.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    article.source.toLowerCase().includes(searchTerm.toLowerCase())
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        document.getElementById('global-search')?.focus();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  const articles = useMemo(
+    () =>
+      newsArticles.filter((article) => {
+        if (article.id === heroStory.id) return false;
+        const term = searchTerm.toLowerCase();
+        const matchesSearch =
+          !term ||
+          [article.title, article.excerpt, article.source, article.category].some((value) =>
+            value?.toLowerCase().includes(term)
+          );
+        return matchesSearch && (activeCategory === 'All' || article.category === activeCategory);
+      }),
+    [activeCategory, searchTerm]
   );
 
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <section className="text-center mb-12">
-        <h1 className="font-headline text-5xl md:text-7xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">
-          The Latest Kick-off
-        </h1>
-        <p className="text-lg text-muted-foreground mt-4 max-w-2xl mx-auto font-body">
-          Your daily roundup of the biggest stories from the world of football.
-          Stay ahead of the game with ScoreCast.
-        </p>
-      </section>
+  const clearFilters = () => {
+    setSearchTerm('');
+    setActiveCategory('All');
+  };
 
-      <section className="mb-8 max-w-lg mx-auto">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search for news articles..."
-            className="w-full glass-input pl-10 text-base"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+  return (
+    <div className="pb-20">
+      {/* Hero */}
+      <section className="page-shell pt-10 sm:pt-16">
+        <div className="grid items-center gap-10 lg:grid-cols-[1fr_1.2fr]">
+          <div>
+            <span className="chip !h-8 !px-3 !text-xs !font-semibold !text-primary !border-primary/30 !bg-primary/10">
+              Matchday HQ
+            </span>
+            <h1 className="text-display mt-5">
+              The beautiful game, <span className="text-primary">at a glance.</span>
+            </h1>
+            <p className="mt-5 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
+              Results, standings, breaking news and AI-powered takeaways — your single matchday
+              headquarters for the football world.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <Button asChild size="lg">
+                <Link href="#latest-news">Latest news</Link>
+              </Button>
+              <Button asChild size="lg" variant="outline">
+                <Link href="/summarizer">
+                  <Bot className="h-4 w-4" aria-hidden="true" /> AI Summarizer
+                </Link>
+              </Button>
+            </div>
+          </div>
+          <HeroStory article={heroStory} />
+        </div>
+
+        {/* Search + category filter */}
+        <div className="mx-auto mt-10 max-w-3xl sm:mt-12">
+          <div>
+            <div className="relative">
+              <Search
+                className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground"
+                aria-hidden="true"
+              />
+              <Input
+                id="global-search"
+                type="search"
+                placeholder="Search teams, players, news..."
+                className="input-surface h-12 rounded-lg pl-12 pr-24 text-base"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                aria-label="Search football news"
+              />
+              {searchTerm ? (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  aria-label="Clear search"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-2 text-muted-foreground transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <X className="h-4 w-4" aria-hidden="true" />
+                </button>
+              ) : (
+                <span className="absolute right-4 top-1/2 hidden -translate-y-1/2 rounded border border-border bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground sm:block">
+                  Ctrl K
+                </span>
+              )}
+            </div>
+            {searchTerm && (
+              <p className="mt-2 text-xs text-muted-foreground" role="status">
+                {articles.length} {articles.length === 1 ? 'story' : 'stories'} match &quot;{searchTerm}
+                &quot;
+              </p>
+            )}
+          </div>
+          <div
+            className="mt-3 -mx-4 flex gap-2 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none] sm:mx-0 sm:justify-center sm:px-0"
+            aria-label="Filter news by category"
+          >
+            {categories.map((category) => (
+              <button
+                key={category}
+                type="button"
+                onClick={() => setActiveCategory(category)}
+                aria-pressed={activeCategory === category}
+                className={cn(
+                  'min-h-9 shrink-0 rounded-full border px-4 text-sm font-medium transition',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  activeCategory === category
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'border-border bg-secondary/40 text-muted-foreground hover:border-primary/60 hover:text-foreground'
+                )}
+              >
+                {category}
+              </button>
+            ))}
+          </div>
         </div>
       </section>
 
-      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {filteredArticles.map((article) => {
-          const image = getImageById(article.imageId);
-          return (
-            <Card
-              key={article.id}
-              className="flex flex-col overflow-hidden glass-card transform hover:-translate-y-2 transition-transform duration-300"
-            >
-              <CardHeader className="p-0">
-                <div className="relative h-48 w-full">
-                  {image && (
-                    <Image
-                      src={image.imageUrl}
-                      alt={image.description}
-                      fill
-                      className="object-cover"
-                      data-ai-hint={image.imageHint}
-                    />
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="flex-grow p-6">
-                <Badge variant="secondary" className="mb-2">{article.source}</Badge>
-                <CardTitle className="font-headline text-xl leading-tight mb-2">
-                  {article.title}
-                </CardTitle>
-                <p className="text-muted-foreground font-body text-sm">
-                  {article.excerpt}
-                </p>
-              </CardContent>
-              <CardFooter className="p-6 pt-0 flex justify-between items-center">
-                <p className="text-xs text-muted-foreground">{article.date}</p>
-                <Link
-                  href="#"
-                  className="flex items-center text-sm text-primary hover:text-accent transition-colors font-semibold"
-                >
-                  Read More <ArrowRight className="ml-1 h-4 w-4" />
-                </Link>
-              </CardFooter>
-            </Card>
-          );
-        })}
-      </section>
+      {/* Match centre */}
+      <div className="page-shell mt-10 space-y-14 sm:mt-12 sm:space-y-16">
+        <section className="grid items-start gap-6 lg:grid-cols-[1.5fr_1fr]">
+          <div className="min-w-0">
+            <SectionHeader
+              eyebrow="Final whistle"
+              title="Latest results"
+              description="Demo records — final scores from the latest available matchday."
+              href="/results"
+              action="All results"
+            />
+            <div className="space-y-2.5">
+              {matchResults.slice(0, 3).map((match) => (
+                <MatchCard key={match.id} match={match} />
+              ))}
+            </div>
+            <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
+              <Radio className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+              <span>
+                Demo data from July 2024 — live scores will appear here when a data provider is
+                connected.
+              </span>
+            </p>
+          </div>
+          <div className="min-w-0">
+            <SectionHeader eyebrow="League table" title="Premier League" href="/standings" action="Full table" />
+            <StandingsTable standings={leagueStandings} compact title="Premier League" subtitle="2023/24 · final table" />
+          </div>
+        </section>
+
+        {/* Latest news */}
+        <section id="latest-news" className="scroll-mt-24">
+          <SectionHeader
+            eyebrow="Latest coverage"
+            title="Latest news"
+            description={searchTerm || activeCategory !== 'All' ? 'Filtered by your current search and category.' : 'Fresh stories from across the football world.'}
+          />
+          {articles.length ? (
+            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+              {articles.map((article) => (
+                <NewsCard key={article.id} article={article} />
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              title="No news found"
+              description="Nothing matches your current search or category. Try a different filter."
+              action={
+                <Button variant="outline" onClick={clearFilters}>
+                  Clear filters
+                </Button>
+              }
+            />
+          )}
+        </section>
+
+        {/* AI banner */}
+        <section className="overflow-hidden rounded-2xl border border-primary/25 bg-primary/[0.06] px-6 py-9 sm:px-10 sm:py-11">
+          <div className="grid items-center gap-7 md:grid-cols-[1fr_auto]">
+            <div>
+              <p className="eyebrow mb-2">ScoreCast AI</p>
+              <h2 className="text-section-title sm:text-3xl">Get the point, faster.</h2>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
+                Turn long football articles into concise, useful takeaways with the AI news
+                summarizer.
+              </p>
+            </div>
+            <Button asChild size="lg">
+              <Link href="/summarizer">
+                Try AI Summarizer <Bot className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            </Button>
+          </div>
+        </section>
+      </div>
     </div>
   );
 }

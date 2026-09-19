@@ -9,20 +9,18 @@ export type FirebaseContextValue = {
   app?: FirebaseApp;
   auth?: Auth;
   firestore?: Firestore;
+  enabled: boolean;
 };
 
 const FirebaseContext = createContext<FirebaseContextValue | null>(null);
 
-export type FirebaseProviderProps = {
+export type FirebaseProviderProps = FirebaseContextValue & {
   children: React.ReactNode;
-  app: FirebaseApp;
-  auth: Auth;
-  firestore: Firestore;
 };
 
 export function FirebaseProvider(props: FirebaseProviderProps) {
   const { children, ...rest } = props;
-  const contextValue = { ...rest };
+  const contextValue = rest;
   return (
     <FirebaseContext.Provider value={contextValue}>
       {children}
@@ -48,10 +46,11 @@ export function useFirebaseApp() {
 
 export function useAuth() {
   const { auth } = useFirebase();
-  if (!auth) {
-    throw new Error('Firebase auth is not available');
-  }
-  return auth;
+  return auth ?? null;
+}
+
+export function useIsAuthEnabled() {
+  return useFirebase().enabled;
 }
 
 export function useFirestore() {
