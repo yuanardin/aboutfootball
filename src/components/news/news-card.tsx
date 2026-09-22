@@ -7,7 +7,8 @@ import { cn, getImageById } from '@/lib/utils';
 type NewsCardProps = { article: NewsArticle; featured?: boolean; priority?: boolean };
 
 export function NewsCard({ article, featured = false, priority = false }: NewsCardProps) {
-  const image = getImageById(article.imageId);
+  const fallbackImage = getImageById(article.imageId);
+  const image = article.imageUrl ? { imageUrl: article.imageUrl, description: article.title } : fallbackImage;
   const category = article.category ?? 'Football';
   const readTime = article.readTime ?? '4 min read';
 
@@ -20,7 +21,9 @@ export function NewsCard({ article, featured = false, priority = false }: NewsCa
       )}
     >
       <Link
-        href={`/articles/${article.id}`}
+        href={article.articleUrl ?? '#'}
+        target={article.articleUrl ? '_blank' : undefined}
+        rel="noreferrer"
         className="absolute inset-0 z-10 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
         aria-label={article.title}
       />
@@ -38,7 +41,7 @@ export function NewsCard({ article, featured = false, priority = false }: NewsCa
             priority={priority}
             sizes={featured ? '(max-width: 768px) 100vw, 60vw' : '(max-width: 768px) 100vw, 33vw'}
             className="object-cover transition duration-500 group-hover:scale-[1.04]"
-            data-ai-hint={image.imageHint}
+            data-ai-hint={'imageHint' in image ? image.imageHint : article.title}
           />
         ) : (
           <div className="absolute inset-0 bg-secondary" />

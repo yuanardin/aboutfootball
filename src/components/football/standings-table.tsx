@@ -70,6 +70,7 @@ export function StandingsTable({ standings, compact = false, title = 'Premier Le
           <tbody>
             {rows.map((standing) => {
               const logo = getImageById(standing.team.logoId);
+              const hasLogo = Boolean(standing.team.crest || logo);
               const isLeader = leadingRows.includes(standing);
               return (
                 <tr
@@ -93,14 +94,14 @@ export function StandingsTable({ standings, compact = false, title = 'Premier Le
                   </td>
                   <th scope="row" className={cn('sticky left-10 z-10 bg-card px-3 py-3 text-left font-normal')}>
                     <div className="flex items-center gap-2.5">
-                      {logo && (
+                      {hasLogo && (
                         <Image
-                          src={logo.imageUrl}
+                          src={standing.team.crest ?? logo?.imageUrl ?? ''}
                           alt=""
                           width={24}
                           height={24}
                           className="h-6 w-6 shrink-0 object-contain"
-                          data-ai-hint={logo.imageHint}
+                          data-ai-hint={logo?.imageHint}
                         />
                       )}
                       <span className="whitespace-nowrap font-semibold text-foreground">{standing.team.name}</span>

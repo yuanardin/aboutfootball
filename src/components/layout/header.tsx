@@ -154,8 +154,10 @@ export function Header() {
                   <p className="truncate text-xs font-normal text-muted-foreground">{user.email}</p>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => handleUnavailable('Profile')}>
-                  <UserCircle className="mr-2 h-4 w-4" /> Profile
+                <DropdownMenuItem asChild>
+                  <Link href="/profile">
+                    <UserCircle className="mr-2 h-4 w-4" /> Profile
+                  </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleUnavailable('Saved articles')}>
                   <Bookmark className="mr-2 h-4 w-4" /> Saved articles
@@ -197,14 +199,51 @@ export function Header() {
                 <span className="font-headline text-lg font-bold tracking-tight">ScoreCast</span>
               </Link>
               <MobileNav />
-              <div className="mt-7 border-t border-border pt-5 sm:hidden">
-                <Button asChild className="w-full">
-                  <Link href="/register">Join ScoreCast</Link>
-                </Button>
-                <Button asChild variant="ghost" className="mt-2 w-full">
-                  <Link href="/login">Log in</Link>
-                </Button>
-              </div>
+              {user ? (
+                <div className="mt-7 border-t border-border pt-5">
+                  <div className="flex items-center gap-3 rounded-lg px-3 py-2">
+                    <Avatar className="h-9 w-9">
+                      <AvatarImage src={user.photoURL ?? ''} alt={user.displayName ?? 'User'} />
+                      <AvatarFallback>
+                        {user.displayName?.charAt(0) ?? user.email?.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold">
+                        {user.displayName || 'ScoreCast member'}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+                    </div>
+                  </div>
+                  <Link
+                    href="/profile"
+                    aria-current={pathname.startsWith('/profile') ? 'page' : undefined}
+                    className={cn(
+                      'mt-2 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                      pathname.startsWith('/profile')
+                        ? 'bg-primary/15 text-primary'
+                        : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                    )}
+                  >
+                    <UserCircle className="h-4 w-4" />
+                    Profile
+                  </Link>
+                  <Button variant="outline" className="mt-2 w-full" onClick={handleSignOut}>
+                    <LogOut className="h-4 w-4" />
+                    Sign out
+                  </Button>
+                </div>
+              ) : (
+                <div className="mt-7 border-t border-border pt-5 sm:hidden">
+                  <Button asChild className="w-full">
+                    <Link href="/register">Join ScoreCast</Link>
+                  </Button>
+                  <Button asChild variant="ghost" className="mt-2 w-full">
+                    <Link href="/login">Log in</Link>
+                  </Button>
+                </div>
+              )}
             </SheetContent>
           </Sheet>
         </div>

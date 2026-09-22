@@ -3,31 +3,47 @@
 import { useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowUpRight, Clock3, Newspaper, Search, X } from 'lucide-react';
+import { AlertTriangle, ArrowUpRight, Clock3, Newspaper, Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { NewsCard } from '@/components/news/news-card';
 import { EmptyState } from '@/components/football/empty-state';
-import { newsArticles } from '@/lib/data';
 import type { NewsArticle } from '@/lib/types';
-import { getImageById, cn } from '@/lib/utils';
+import { cn, getImageById } from '@/lib/utils';
 
-const featuredArticle = newsArticles[0];
+type NewsExplorerProps = {
+  articles: NewsArticle[];
+  source: 'live';
+  provider: string;
+  lastUpdated: string;
+  error?: string | null;
+};
 
-const categories = [
-  'All',
-  ...Array.from(new Set(newsArticles.map((a) => a.category).filter((c): c is string => Boolean(c)))),
-];
+function formatLastUpdated(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return 'Recently';
+  }
+
+  return new Intl.DateTimeFormat('en-US', {
+    dateStyle: 'short',
+    timeStyle: 'medium',
+    timeZone: 'UTC',
+  }).format(date);
+}
 
 function FeaturedStory({ article }: { article: NewsArticle }) {
-  const image = getImageById(article.imageId);
+  const image = article.imageUrl ? { imageUrl: article.imageUrl, description: article.title } : getImageById(article.imageId);
   const category = article.category ?? 'Football';
   const readTime = article.readTime ?? '4 min read';
 
   return (
     <article className="group relative overflow-hidden rounded-2xl border border-border bg-card shadow-card transition duration-200 hover:border-primary/40 hover:shadow-lift md:grid md:grid-cols-[1.18fr_1fr]">
       <Link
-        href={`/articles/${article.id}`}
+        href={article.articleUrl ?? '#'}
+        target={article.articleUrl ? '_blank' : undefined}
+        rel="noreferrer"
         className="absolute inset-0 z-10 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
         aria-label={article.title}
       />
@@ -40,7 +56,7 @@ function FeaturedStory({ article }: { article: NewsArticle }) {
             priority
             sizes="(max-width: 768px) 100vw, 55vw"
             className="object-cover transition duration-500 group-hover:scale-[1.04]"
-            data-ai-hint={image.imageHint}
+            data-ai-hint={article.title}
           />
         ) : (
           <div className="absolute inset-0 bg-secondary" />
@@ -70,15 +86,27 @@ function FeaturedStory({ article }: { article: NewsArticle }) {
   );
 }
 
-export function NewsExplorer() {
+export function NewsExplorer({ articles, provider, lastUpdated, error }: NewsExplorerProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
 
+  const categories = useMemo(
+    () => [
+      'All',
+      ...Array.from(
+        new Set(
+          articles.map((article) => article.category).filter((value): value is string => Boolean(value))
+        )
+      ),
+    ],
+    [articles]
+  );
+
   const isFiltering = searchTerm.trim() !== '' || activeCategory !== 'All';
 
-  const articles = useMemo(
+  const filteredArticles = useMemo(
     () =>
-      newsArticles.filter((article) => {
+      articles.filter((article) => {
         const term = searchTerm.trim().toLowerCase();
         const matchesSearch =
           !term ||
@@ -87,15 +115,16 @@ export function NewsExplorer() {
           );
         return matchesSearch && (activeCategory === 'All' || article.category === activeCategory);
       }),
-    [activeCategory, searchTerm]
+    [activeCategory, articles, searchTerm]
   );
+
+  const featuredArticle = filteredArticles[0] ?? articles[0];
+  const gridArticles = isFiltering ? filteredArticles : filteredArticles.filter((article) => article.id !== featuredArticle?.id);
 
   const clearFilters = () => {
     setSearchTerm('');
     setActiveCategory('All');
   };
-
-  const gridArticles = isFiltering ? articles : articles.filter((a) => a.id !== featuredArticle.id);
 
   return (
     <div className="page-shell pb-20 pt-10 sm:pt-14">
@@ -107,8 +136,35 @@ export function NewsExplorer() {
             Transfer talk, matchday coverage and analysis — filter by topic or search the newsroom.
           </p>
         </section>
-        <span className="chip w-fit shrink-0 sm:mb-1">Demo records · Jul 2024</span>
+        <div className="flex flex-col items-start gap-2 sm:mb-1">
+          <span className="chip w-fit shrink-0">
+            <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-success" aria-hidden="true" />
+            Live news
+          </span>
+          <span className="text-xs text-muted-foreground">Updated {formatLastUpdated(lastUpdated)}</span>
+        </div>
       </header>
+
+      {error || articles.length === 0 ? (
+        <section
+          role="alert"
+          aria-label="News unavailable"
+          className="mt-10 flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/50 px-6 py-16 text-center"
+        >
+          <span className="grid h-12 w-12 place-items-center rounded-full bg-secondary text-muted-foreground">
+            <AlertTriangle className="h-5 w-5" aria-hidden="true" />
+          </span>
+          <h2 className="text-card-title mt-4 font-headline text-xl font-bold">News unavailable right now</h2>
+          <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
+            The live football news feed could not be reached{error ? ` (${error})` : ''}. Check back
+            shortly — we only show real, up-to-the-minute football stories here.
+          </p>
+          <Button asChild variant="outline" className="mt-6">
+            <Link href="/news">Refresh feed</Link>
+          </Button>
+        </section>
+      ) : (
+        <>
 
       <section aria-label="News filters" className="mt-8 sm:mt-10">
         <div className="relative max-w-xl">
@@ -163,12 +219,12 @@ export function NewsExplorer() {
 
       {searchTerm && (
         <p className="mt-3 text-xs text-muted-foreground" role="status">
-          {articles.length} {articles.length === 1 ? 'story' : 'stories'} match &quot;{searchTerm}
+          {filteredArticles.length} {filteredArticles.length === 1 ? 'story' : 'stories'} match &quot;{searchTerm}
           &quot;
         </p>
       )}
 
-      {isFiltering && !articles.length ? (
+      {filteredArticles.length === 0 ? (
         <EmptyState
           icon={<Newspaper className="h-5 w-5" aria-hidden="true" />}
           title="No stories found"
@@ -181,7 +237,7 @@ export function NewsExplorer() {
         />
       ) : (
         <div className="mt-10 space-y-14">
-          {!isFiltering && <FeaturedStory article={featuredArticle} />}
+          {!isFiltering && featuredArticle && <FeaturedStory article={featuredArticle} />}
 
           <section>
             <p className="eyebrow mb-2.5">
@@ -212,12 +268,11 @@ export function NewsExplorer() {
 
           <p className="flex items-start gap-2 text-sm leading-6 text-muted-foreground">
             <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-            <span>
-              Demo dataset — {newsArticles.length} preview stories dated July 2024 with placeholder
-              imagery. A live news source will keep headlines, dates and images up to date.
-            </span>
+            <span>Live news from {provider} — updated {formatLastUpdated(lastUpdated)}.</span>
           </p>
         </div>
+      )}
+        </>
       )}
     </div>
   );

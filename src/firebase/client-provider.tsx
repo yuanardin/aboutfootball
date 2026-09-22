@@ -2,9 +2,9 @@
 
 import { FirebaseProvider } from './provider';
 import { initializeFirebase } from './index';
-import { getAuth } from 'firebase/auth';
+import { browserLocalPersistence, getAuth, setPersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 
 const REQUIRED_KEYS: readonly string[] = [
   'NEXT_PUBLIC_FIREBASE_API_KEY',
@@ -43,6 +43,18 @@ export function FirebaseClientProvider({ children }: { children: React.ReactNode
       firestore: getFirestore(app),
     };
   }, []);
+
+  // Keep the session across reloads and browser restarts. `browserLocalPersistence`
+  // is the SDK default, but setting it explicitly guarantees signed-in users are not
+  // unexpectedly logged out on the next visit.
+  useEffect(() => {
+    if (firebaseProps.enabled && firebaseProps.auth) {
+      setPersistence(firebaseProps.auth, browserLocalPersistence).catch(() => {
+        // Persistence is best-effort; auth keeps working in the browser's default
+        // storage mode even if switching persistence fails.
+      });
+    }
+  }, [firebaseProps]);
 
   return <FirebaseProvider {...firebaseProps}>{children}</FirebaseProvider>;
 }

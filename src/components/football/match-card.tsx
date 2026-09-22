@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import type { MatchResult } from '@/lib/types';
-import { cn, getImageById } from '@/lib/utils';
+import { cn, formatMatchDate, getImageById } from '@/lib/utils';
 
 type MatchStatus = MatchResult['status'];
 
@@ -43,9 +43,36 @@ function MatchStatusBadge({ status }: { status: MatchStatus }) {
   );
 }
 
+type TeamLogoInfo = { imageUrl: string; imageHint?: string };
+
+function TeamLogo({
+  crest,
+  logo,
+  alt,
+  size = 24,
+}: {
+  crest?: string;
+  logo?: TeamLogoInfo;
+  alt: string;
+  size?: number;
+}) {
+  return (
+    <Image
+      src={crest ?? logo?.imageUrl ?? ''}
+      alt={alt}
+      width={size}
+      height={size}
+      className={cn('shrink-0 object-contain', size === 24 ? 'h-6 w-6' : 'h-5 w-5')}
+      data-ai-hint={logo?.imageHint}
+    />
+  );
+}
+
 export function MatchCard({ match, small = false }: { match: MatchResult; small?: boolean }) {
   const home = getImageById(match.homeTeam.logoId);
   const away = getImageById(match.awayTeam.logoId);
+  const showHomeLogo = Boolean(match.homeTeam.crest || home);
+  const showAwayLogo = Boolean(match.awayTeam.crest || away);
 
   return (
     <article className="rounded-lg border border-border/80 bg-card/60 px-4 py-3 transition hover:border-primary/40 sm:px-4">
@@ -56,7 +83,7 @@ export function MatchCard({ match, small = false }: { match: MatchResult; small?
           </span>
         </span>
         <span className="flex shrink-0 items-center gap-2">
-          <span className="text-xs text-muted-foreground">{match.matchDate}</span>
+          <span className="text-xs text-muted-foreground">{formatMatchDate(match.matchDate)}</span>
           <MatchStatusBadge status={match.status} />
         </span>
       </div>
@@ -65,15 +92,8 @@ export function MatchCard({ match, small = false }: { match: MatchResult; small?
           <span className={cn('truncate', small ? 'text-sm' : 'text-sm sm:text-[15px]')}>
             {match.homeTeam.name}
           </span>
-          {home && (
-            <Image
-              src={home.imageUrl}
-              alt={match.homeTeam.name}
-              width={24}
-              height={24}
-              className="h-6 w-6 shrink-0 object-contain"
-              data-ai-hint={home.imageHint}
-            />
+          {showHomeLogo && (
+            <TeamLogo crest={match.homeTeam.crest} logo={home} alt={match.homeTeam.name} />
           )}
         </div>
         <div className="flex flex-col items-center px-1 text-center">
@@ -90,15 +110,8 @@ export function MatchCard({ match, small = false }: { match: MatchResult; small?
           </div>
         </div>
         <div className="flex min-w-0 items-center gap-2.5 font-medium">
-          {away && (
-            <Image
-              src={away.imageUrl}
-              alt={match.awayTeam.name}
-              width={24}
-              height={24}
-              className="h-6 w-6 shrink-0 object-contain"
-              data-ai-hint={away.imageHint}
-            />
+          {showAwayLogo && (
+            <TeamLogo crest={match.awayTeam.crest} logo={away} alt={match.awayTeam.name} />
           )}
           <span className={cn('truncate', small ? 'text-sm' : 'text-sm sm:text-[15px]')}>
             {match.awayTeam.name}

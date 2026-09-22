@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useRef, useState, type FormEvent } from 'react';
 import { useFormStatus } from 'react-dom';
+import { useSearchParams } from 'next/navigation';
 import { handleSummarize, type FormState } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,11 +44,18 @@ function SubmitButton() {
 }
 
 export function SummarizerForm() {
+  const searchParams = useSearchParams();
   const [session, setSession] = useState(0);
+  const [initialUrl, setInitialUrl] = useState(() => searchParams.get('url') ?? '');
+
   return (
     <FormSession
       key={session}
-      onRestart={() => setSession((count) => count + 1)}
+      initialUrl={initialUrl}
+      onRestart={() => {
+        setSession((count) => count + 1);
+        setInitialUrl('');
+      }}
       resetFocus={session > 0}
     />
   );
@@ -55,9 +63,11 @@ export function SummarizerForm() {
 
 function FormSession({
   onRestart,
+  initialUrl,
   resetFocus,
 }: {
   onRestart: () => void;
+  initialUrl?: string;
   resetFocus?: boolean;
 }) {
   const [state, formAction] = useActionState(handleSummarize, initialState);
@@ -160,6 +170,7 @@ function FormSession({
           inputRef={inputRef}
           hasError={Boolean(clientError || serverError)}
           errorMessage={clientError ?? serverError}
+          initialUrl={initialUrl}
         />
       </Card>
 
@@ -237,12 +248,14 @@ function FormBody({
   inputRef,
   hasError,
   errorMessage,
+  initialUrl,
 }: {
   formAction: (formData: FormData) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   inputRef: React.RefObject<HTMLInputElement | null>;
   hasError: boolean;
   errorMessage?: string;
+  initialUrl?: string;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -253,6 +266,7 @@ function FormBody({
         inputRef={inputRef}
         hasError={hasError}
         errorMessage={errorMessage}
+        initialUrl={initialUrl}
       />
     </form>
   );
@@ -263,11 +277,13 @@ function FormContent({
   inputRef,
   hasError,
   errorMessage,
+  initialUrl,
 }: {
   formRef: React.RefObject<HTMLFormElement | null>;
   inputRef: React.RefObject<HTMLInputElement | null>;
   hasError: boolean;
   errorMessage?: string;
+  initialUrl?: string;
 }) {
   const { pending } = useFormStatus();
 
@@ -299,6 +315,7 @@ function FormContent({
             placeholder="https://www.example.com/football-news/..."
             autoComplete="url"
             disabled={pending}
+            defaultValue={initialUrl}
             aria-invalid={hasError}
             aria-describedby={hasError ? URL_ERROR_ID : undefined}
             className="input-surface text-base"

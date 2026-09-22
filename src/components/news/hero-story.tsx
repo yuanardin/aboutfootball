@@ -5,13 +5,18 @@ import type { NewsArticle } from '@/lib/types';
 import { getImageById } from '@/lib/utils';
 
 export function HeroStory({ article }: { article: NewsArticle }) {
-  const image = getImageById(article.imageId);
+  const fallbackImage = getImageById(article.imageId);
+  const image = article.imageUrl
+    ? { imageUrl: article.imageUrl, description: article.title }
+    : fallbackImage;
   const category = article.category ?? 'Football';
 
   return (
     <article className="group relative overflow-hidden rounded-2xl border border-border bg-card shadow-lift">
       <Link
-        href={`/articles/${article.id}`}
+        href={article.articleUrl ?? '#'}
+        target={article.articleUrl ? '_blank' : undefined}
+        rel="noreferrer"
         className="absolute inset-0 z-20 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         aria-label={article.title}
       />
@@ -24,7 +29,7 @@ export function HeroStory({ article }: { article: NewsArticle }) {
             priority
             sizes="(max-width: 1024px) 100vw, 55vw"
             className="object-cover transition duration-700 group-hover:scale-[1.04]"
-            data-ai-hint={image.imageHint}
+            data-ai-hint={'imageHint' in image ? image.imageHint : article.title}
           />
         ) : (
           <div className="absolute inset-0 bg-secondary" />

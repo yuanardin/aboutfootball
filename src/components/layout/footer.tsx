@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Logo } from '../icons/logo';
+import { footballDataConfigured } from '@/lib/football-data/service';
 
 const columns = [
   {
@@ -23,7 +24,9 @@ const columns = [
   },
 ];
 
-export function Footer() {
+export async function Footer() {
+  const liveConnected = footballDataConfigured();
+
   return (
     <footer className="mt-16 border-t border-border/80 bg-card/40">
       <div className="page-shell grid gap-10 py-12 lg:grid-cols-[1.1fr_1.6fr]">
@@ -42,8 +45,13 @@ export function Footer() {
             Football news, scores and insights — without the clutter.
           </p>
           <p className="mt-6 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className="h-1.5 w-1.5 rounded-full bg-warning" aria-hidden="true" />
-            Demo dataset — live football-data feeds are not connected yet.
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${liveConnected ? 'bg-success' : 'bg-warning'}`}
+              aria-hidden="true"
+            />
+            {liveConnected
+              ? 'Live football-data feeds connected.'
+              : 'Demo dataset — live football-data feeds are not connected yet.'}
           </p>
         </div>
         <div className="grid grid-cols-1 gap-8 sm:grid-cols-3">
