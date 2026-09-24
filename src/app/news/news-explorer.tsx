@@ -7,6 +7,7 @@ import { AlertTriangle, ArrowUpRight, Clock3, Newspaper, Search, X } from 'lucid
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { NewsCard } from '@/components/news/news-card';
+import { SaveArticleButton } from '@/components/news/save-article-button';
 import { EmptyState } from '@/components/football/empty-state';
 import type { NewsArticle } from '@/lib/types';
 import { cn, getImageById } from '@/lib/utils';
@@ -61,6 +62,7 @@ function FeaturedStory({ article }: { article: NewsArticle }) {
         ) : (
           <div className="absolute inset-0 bg-secondary" />
         )}
+        <SaveArticleButton article={article} />
       </div>
       <div className="flex flex-col p-6 sm:p-8">
         <div className="mb-3 flex items-center gap-2">

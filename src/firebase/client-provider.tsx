@@ -5,6 +5,7 @@ import { initializeFirebase } from './index';
 import { browserLocalPersistence, getAuth, setPersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { useEffect, useMemo } from 'react';
+import { sanitizeFirebaseEnvValue } from './config';
 
 const REQUIRED_KEYS: readonly string[] = [
   'NEXT_PUBLIC_FIREBASE_API_KEY',
@@ -13,17 +14,27 @@ const REQUIRED_KEYS: readonly string[] = [
   'NEXT_PUBLIC_FIREBASE_APP_ID',
 ] as const;
 
+// Static `process.env.NEXT_PUBLIC_FIREBASE_*` references are required here.
+// Next.js only inlines statically-analyzable `process.env.NEXT_PUBLIC_*` access
+// into client bundles; a dynamic `process.env[key]` lookup is left as a runtime
+// read of the browser `process.env` polyfill (always empty), which made this
+// check return false and /login show "Authentication not configured".
 const KEY_PRESENCE: Record<string, boolean> = {
-  NEXT_PUBLIC_FIREBASE_API_KEY: Boolean(process.env.NEXT_PUBLIC_FIREBASE_API_KEY),
-  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: Boolean(process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN),
-  NEXT_PUBLIC_FIREBASE_PROJECT_ID: Boolean(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID),
-  NEXT_PUBLIC_FIREBASE_APP_ID: Boolean(process.env.NEXT_PUBLIC_FIREBASE_APP_ID),
+  NEXT_PUBLIC_FIREBASE_API_KEY: Boolean(
+    sanitizeFirebaseEnvValue(process.env.NEXT_PUBLIC_FIREBASE_API_KEY)
+  ),
+  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: Boolean(
+    sanitizeFirebaseEnvValue(process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN)
+  ),
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID: Boolean(
+    sanitizeFirebaseEnvValue(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID)
+  ),
+  NEXT_PUBLIC_FIREBASE_APP_ID: Boolean(
+    sanitizeFirebaseEnvValue(process.env.NEXT_PUBLIC_FIREBASE_APP_ID)
+  ),
 };
 
 function firebaseConfigured() {
-  // Static env references are required here: `process.env[key]` (dynamic access)
-  // is NOT inlined in client bundles, which would make this always return false
-  // in the browser even when keys are configured.
   return REQUIRED_KEYS.every((key) => KEY_PRESENCE[key]);
 }
 

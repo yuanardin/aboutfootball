@@ -2,6 +2,8 @@ import 'server-only';
 import type {
   FootballDataMatchesResponse,
   FootballDataStandingsResponse,
+  FootballDataTeamMatchesResponse,
+  FootballDataTeamsResponse,
 } from './types';
 
 const FOOTBALL_DATA_BASE_URL = 'https://api.football-data.org/v4';
@@ -87,4 +89,15 @@ export function fetchFinishedMatches(competitionCode: string): Promise<FootballD
 
 export function fetchStandings(competitionCode: string): Promise<FootballDataStandingsResponse> {
   return apiRequest<FootballDataStandingsResponse>(`/competitions/${competitionCode}/standings`);
+}
+
+export function fetchCompetitionTeams(competitionCode: string): Promise<FootballDataTeamsResponse> {
+  return apiRequest<FootballDataTeamsResponse>(`/competitions/${competitionCode}/teams`);
+}
+
+export function fetchTeamMatches(
+  teamId: number,
+  query: Record<string, string>
+): Promise<FootballDataTeamMatchesResponse> {
+  return apiRequest<FootballDataTeamMatchesResponse>(`/teams/${teamId}/matches`, query);
 }

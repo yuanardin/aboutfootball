@@ -13,6 +13,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { GoogleIcon } from '@/components/icons/google-icon';
+import { FavoriteTeamCard } from '@/components/profile/favorite-team-card';
+import { PreferencesCard } from '@/components/profile/preferences-card';
+import { SavedArticlesCard } from '@/components/profile/saved-articles-card';
 import { useAuth, useUser } from '@/firebase';
 import { getFirebaseErrorMessage } from '@/lib/firebase-errors';
 import { useToast } from '@/hooks/use-toast';
@@ -245,6 +248,12 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
 
+        <FavoriteTeamCard user={user} />
+
+        <PreferencesCard user={user} />
+
+        <SavedArticlesCard user={user} />
+
         <Card className="card-surface mt-6">
           <CardHeader className="border-b border-border/60 px-6 py-5 sm:px-8">
             <h2 className="text-card-title text-lg">Edit profile</h2>
@@ -411,7 +420,7 @@ export default function ProfilePage() {
 
         <p className="mt-6 flex items-center justify-center gap-2 text-xs text-muted-foreground">
           <UserCircle className="h-3.5 w-3.5" aria-hidden="true" />
-          Saved articles and AI history are coming soon.
+          AI history and more personalization are coming soon.
         </p>
       </div>
     </div>

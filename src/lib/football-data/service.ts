@@ -2,12 +2,17 @@ import 'server-only';
 import { cachedWithTtl } from './cache';
 import {
   FootballDataProviderError,
+  fetchCompetitionTeams,
   fetchFinishedMatches,
   fetchStandings,
+  fetchTeamMatches,
 } from './provider';
 import type {
+  FootballDataMatch,
+  FootballDataMatchStatus,
   FootballDataMeta,
   FootballDataSeason,
+  FootballDataTeam,
   ResultsPayload,
   StandingsPayload,
 } from './types';
@@ -16,11 +21,13 @@ import type { MatchResult, Standing } from '@/lib/types';
 
 const RESULTS_CACHE_TTL_MS = 2 * 60 * 1000;
 const STANDINGS_CACHE_TTL_MS = 10 * 60 * 1000;
+const TEAMS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 const COMPETITION_CODE = 'PL';
 
 const RESULTS_CACHE_KEY = 'football-data:pl:matches';
 const STANDINGS_CACHE_KEY = 'football-data:pl:standings';
+const TEAMS_CACHE_KEY = 'football-data:pl:teams';
 
 export function footballDataConfigured(): boolean {
   return Boolean(process.env.FOOTBALL_DATA_API_KEY);
@@ -166,6 +173,179 @@ export async function getStandings(): Promise<StandingsPayload> {
   } catch (error) {
     logFallback(error, 'standings');
     return demoStandingsPayload();
+  }
+}
+
+export type CompetitionTeamsResult = {
+  teams: FootballDataTeam[];
+  error: string | null;
+};
+
+export async function getCompetitionTeams(): Promise<CompetitionTeamsResult> {
+  if (!footballDataConfigured()) {
+    return {
+      teams: [],
+      error: 'FOOTBALL_DATA_API_KEY is not configured on the server.',
+    };
+  }
+
+  try {
+    const teams = await cachedWithTtl(TEAMS_CACHE_KEY, TEAMS_CACHE_TTL_MS, async () => {
+      const response = await fetchCompetitionTeams(COMPETITION_CODE);
+      return [...response.teams].sort((a, b) => a.name.localeCompare(b.name));
+    });
+    return { teams, error: null };
+  } catch (error) {
+    logFallback(error, 'teams');
+    return {
+      teams: [],
+      error: 'Unable to load the club list right now. Please try again later.',
+    };
+  }
+}
+
+export type TeamMatchDto = {
+  id: number;
+  competition: string;
+  competitionCode: string;
+  status: FootballDataMatchStatus;
+  utcDate: string;
+  matchday: number | null;
+  homeTeam: { id: number; name: string; crest: string | null; score: number | null };
+  awayTeam: { id: number; name: string; crest: string | null; score: number | null };
+};
+
+export type TeamMatchesResult = {
+  upcoming: TeamMatchDto | null;
+  previous: TeamMatchDto | null;
+  live: TeamMatchDto | null;
+  error: string | null;
+  stale: boolean;
+};
+
+const TEAM_MATCHES_TTL_MS = 10 * 60 * 1000;
+const TEAM_MATCHES_LIVE_TTL_MS = 3 * 60 * 1000;
+
+type TeamMatchesCacheEntry = { value: TeamMatchesResult; storedAt: number; ttlMs: number };
+const teamMatchesCache = new Map<string, TeamMatchesCacheEntry>();
+const teamMatchesInFlight = new Map<string, Promise<TeamMatchesResult>>();
+
+function isLiveMatchStatus(status: FootballDataMatchStatus): boolean {
+  return status === 'IN_PLAY' || status === 'PAUSED';
+}
+
+function toTeamMatchDto(match: FootballDataMatch): TeamMatchDto {
+  return {
+    id: match.id,
+    competition: match.competition.name,
+    competitionCode: match.competition.code,
+    status: match.status,
+    utcDate: match.utcDate,
+    matchday: match.matchday ?? null,
+    homeTeam: {
+      id: match.homeTeam.id,
+      name: match.homeTeam.shortName ?? match.homeTeam.name,
+      crest: match.homeTeam.crest ?? null,
+      score: match.score?.fullTime?.home ?? match.score?.halfTime?.home ?? null,
+    },
+    awayTeam: {
+      id: match.awayTeam.id,
+      name: match.awayTeam.shortName ?? match.awayTeam.name,
+      crest: match.awayTeam.crest ?? null,
+      score: match.score?.fullTime?.away ?? match.score?.halfTime?.away ?? null,
+    },
+  };
+}
+
+async function loadTeamMatchesFromApi(teamId: number): Promise<TeamMatchesResult> {
+  const key = `team-matches:${teamId}`;
+  const now = Date.now();
+  const existing = teamMatchesCache.get(key);
+
+  try {
+    const [upcomingResult, finishedResult] = await Promise.all([
+      fetchTeamMatches(teamId, { status: 'SCHEDULED,TIMED,IN_PLAY,PAUSED' }),
+      fetchTeamMatches(teamId, { status: 'FINISHED', limit: '1' }),
+    ]);
+
+    const upcomingMatches = [...upcomingResult.matches].sort(
+      (a, b) => Date.parse(a.utcDate) - Date.parse(b.utcDate)
+    );
+
+    const live = upcomingMatches.find((match) => isLiveMatchStatus(match.status)) ?? null;
+
+    const nextMatch = upcomingMatches.find(
+      (match) => !isLiveMatchStatus(match.status) && Date.parse(match.utcDate) > Date.now()
+    );
+
+    const lastMatch = [...finishedResult.matches].sort(
+      (a, b) => Date.parse(b.utcDate) - Date.parse(a.utcDate)
+    )[0];
+
+    const value: TeamMatchesResult = {
+      upcoming: nextMatch ? toTeamMatchDto(nextMatch) : null,
+      previous: lastMatch ? toTeamMatchDto(lastMatch) : null,
+      live: live ? toTeamMatchDto(live) : null,
+      error: null,
+      stale: false,
+    };
+
+    teamMatchesCache.set(key, {
+      value,
+      storedAt: now,
+      ttlMs: live ? TEAM_MATCHES_LIVE_TTL_MS : TEAM_MATCHES_TTL_MS,
+    });
+
+    return value;
+  } catch (error) {
+    logFallback(error, `team ${teamId} matches`);
+    if (existing) {
+      return {
+        ...existing.value,
+        error: 'Live updates paused — showing last known match data.',
+        stale: true,
+      };
+    }
+    return {
+      upcoming: null,
+      previous: null,
+      live: null,
+      error: 'Unable to load this team’s matches right now. Please try again later.',
+      stale: false,
+    };
+  }
+}
+
+export async function getTeamMatches(teamId: number): Promise<TeamMatchesResult> {
+  const key = `team-matches:${teamId}`;
+  const now = Date.now();
+  const existing = teamMatchesCache.get(key);
+
+  if (existing && now - existing.storedAt < existing.ttlMs) {
+    return existing.value;
+  }
+
+  if (!footballDataConfigured()) {
+    return {
+      upcoming: null,
+      previous: null,
+      live: null,
+      error: 'FOOTBALL_DATA_API_KEY is not configured on the server.',
+      stale: false,
+    };
+  }
+
+  const inFlight = teamMatchesInFlight.get(key);
+  if (inFlight) {
+    return inFlight;
+  }
+
+  const pending = loadTeamMatchesFromApi(teamId);
+  teamMatchesInFlight.set(key, pending);
+  try {
+    return await pending;
+  } finally {
+    teamMatchesInFlight.delete(key);
   }
 }
 

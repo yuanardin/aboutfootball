@@ -9,6 +9,9 @@ import { EmptyState } from '@/components/football/empty-state';
 import { SectionHeader } from '@/components/football/section-header';
 import { MatchCard } from '@/components/football/match-card';
 import { StandingsTable } from '@/components/football/standings-table';
+import { YourTeamSection } from '@/components/football/your-team-section';
+import { YourStandingsSection } from '@/components/football/your-standings-section';
+import { NewsForYouSection } from '@/components/news/news-for-you-section';
 import { NewsCard } from '@/components/news/news-card';
 import { HeroStory } from '@/components/news/hero-story';
 import { cn } from '@/lib/utils';
@@ -179,6 +182,12 @@ export function HomeClient({
           </div>
         </div>
       </section>
+
+      <YourTeamSection matches={matches} competition={standingsMeta.competition} />
+
+      <YourStandingsSection />
+
+      <NewsForYouSection />
 
       {/* Match centre */}
       <div className="page-shell mt-10 space-y-14 sm:mt-12 sm:space-y-16">

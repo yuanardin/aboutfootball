@@ -28,6 +28,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { NotificationCenter } from '@/components/notifications/notification-center';
 import { signOut } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -137,8 +138,10 @@ export function Header() {
 
         <div className="flex items-center gap-2">
           {user ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+            <>
+              <NotificationCenter />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="rounded-full" aria-label="Open profile menu">
                   <Avatar className="h-8 w-8">
                     <AvatarImage src={user.photoURL ?? ''} alt={user.displayName ?? 'User'} />
@@ -159,21 +162,26 @@ export function Header() {
                     <UserCircle className="mr-2 h-4 w-4" /> Profile
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleUnavailable('Saved articles')}>
-                  <Bookmark className="mr-2 h-4 w-4" /> Saved articles
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleUnavailable('AI history')}>
-                  <History className="mr-2 h-4 w-4" /> AI history
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleUnavailable('Preferences')}>
-                  <Settings className="mr-2 h-4 w-4" /> Preferences
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut}>
-                  <LogOut className="mr-2 h-4 w-4" /> Sign out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+<DropdownMenuItem asChild>
+                      <Link href="/profile">
+                        <Bookmark className="mr-2 h-4 w-4" /> Saved articles
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleUnavailable('AI history')}>
+                      <History className="mr-2 h-4 w-4" /> AI history
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/profile">
+                        <Settings className="mr-2 h-4 w-4" /> Preferences
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleSignOut}>
+                      <LogOut className="mr-2 h-4 w-4" /> Sign out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
           ) : (
             <>
               <Button asChild variant="ghost" className="hidden sm:inline-flex">

@@ -341,44 +341,66 @@ function mapLiveArticle(article: Record<string, unknown>): NewsArticle | null {
 }
 
 async function fetchNewsFeed(): Promise<NewsArticlesResult> {
-  const endpoint = `${NEWS_API_BASE_URL}/everything?q=${encodeURIComponent(
-    NEWS_QUERY
-  )}&language=en&sortBy=publishedAt&pageSize=${NEWS_PAGE_SIZE}`;
+  const queries = [
+    NEWS_QUERY,
+    'football OR soccer',
+    'premier league OR la liga OR serie a OR bundesliga OR ligue 1',
+    'football news',
+  ];
 
-  const response = await fetch(endpoint, {
-    headers: {
-      'X-Api-Key': process.env.NEWS_API_KEY || '',
-      Accept: 'application/json',
-    },
-    cache: 'no-store',
-  });
+  let lastError: Error | null = null;
 
-  if (!response.ok) {
-    throw new NewsProviderError(
-      response.status,
-      `NewsAPI returned ${response.status} ${response.statusText}`
-    );
+  for (const query of queries) {
+    const endpoint = `${NEWS_API_BASE_URL}/everything?q=${encodeURIComponent(
+      query
+    )}&language=en&sortBy=publishedAt&pageSize=${NEWS_PAGE_SIZE}`;
+
+    try {
+      const response = await fetch(endpoint, {
+        headers: {
+          'X-Api-Key': process.env.NEWS_API_KEY || '',
+          Accept: 'application/json',
+        },
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        lastError = new NewsProviderError(
+          response.status,
+          `NewsAPI returned ${response.status} ${response.statusText}`
+        );
+        continue;
+      }
+
+      const payload = (await response.json()) as { articles?: Record<string, unknown>[] };
+      const articles = sortFeedArticles(
+        (payload.articles ?? [])
+          .map(mapLiveArticle)
+          .filter((article): article is NewsArticle => Boolean(article))
+          .filter(isFootballRelevant)
+      ).slice(0, NEWS_DISPLAY_LIMIT);
+
+      if (articles.length) {
+        return {
+          articles,
+          source: 'live',
+          provider: 'NewsAPI',
+          lastUpdated: new Date().toISOString(),
+          error: null,
+        };
+      }
+
+      lastError = new NewsProviderError(null, 'NewsAPI returned no football-related articles.');
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error('Unknown news fetch error');
+    }
   }
 
-  const payload = (await response.json()) as { articles?: Record<string, unknown>[] };
-  const articles = sortFeedArticles(
-    (payload.articles ?? [])
-      .map(mapLiveArticle)
-      .filter((article): article is NewsArticle => Boolean(article))
-      .filter(isFootballRelevant)
-  ).slice(0, NEWS_DISPLAY_LIMIT);
-
-  if (!articles.length) {
-    throw new NewsProviderError(null, 'NewsAPI returned no football-related articles.');
-  }
-
-  return {
-    articles,
-    source: 'live',
-    provider: 'NewsAPI',
-    lastUpdated: new Date().toISOString(),
-    error: null,
-  };
+  return unavailableResult(
+    lastError instanceof NewsProviderError && lastError.message
+      ? lastError.message
+      : 'NewsAPI returned no football-related articles.'
+  );
 }
 
 async function getCachedNewsFeed(): Promise<NewsArticlesResult> {
@@ -414,4 +436,302 @@ export async function getNewsArticles(): Promise<NewsArticlesResult> {
 export async function getNewsArticleById(id: string): Promise<NewsArticle | null> {
   const { articles } = await getNewsArticles();
   return articles.find((article) => article.id === id) ?? null;
+}
+
+export type TeamNewsResult = {
+  articles: NewsArticle[];
+  club: string;
+  provider: string;
+  lastUpdated: string;
+  error: string | null;
+};
+
+export type NewsRankingPreferences = {
+  topics?: string[];
+  leagues?: string[];
+};
+
+const TEAM_NEWS_PAGE_SIZE = 20;
+const TEAM_NEWS_DISPLAY_LIMIT = 6;
+const TEAM_NEWS_CACHE_TTL_MS = 10 * 60 * 1000;
+
+// Lightweight keyword hints used to re-rank personalized club news by the user's chosen
+// topics. They only ever re-order articles that the live provider already returned — no
+// invented stories, no filtering out of honest results.
+const TOPIC_KEYWORDS: Record<string, string[]> = {
+  matchday: [
+    'matchday',
+    'kick-off',
+    'kick off',
+    'line-up',
+    'lineup',
+    'team news',
+    'starting xi',
+    'team sheet',
+    'preview',
+    'predicted',
+  ],
+  transfers: [
+    'transfer',
+    'signing',
+    'signs',
+    'new deal',
+    'agreement',
+    'bid',
+    'fee',
+    'rumour',
+    'rumor',
+    'wanted',
+  ],
+  injuries: [
+    'injury',
+    'injured',
+    'ruled out',
+    'sidelined',
+    'fitness',
+    'hamstring',
+    'recovery',
+    'return to training',
+  ],
+  analysis: ['analysis', 'tactical', 'statistics', 'stats', 'expected goals', 'deep dive', 'form guide', 'verdict'],
+  offpitch: ['manager', 'sacked', 'banned', 'fined', 'contract', 'extension', 'chairman', 'owner', 'statement'],
+};
+
+function affinityScore(article: NewsArticle, preferences?: NewsRankingPreferences): number {
+  if (!preferences) return 0;
+
+  const text = searchableText(article.title, article.excerpt);
+  let score = 0;
+
+  for (const topic of preferences.topics ?? []) {
+    for (const term of TOPIC_KEYWORDS[topic] ?? []) {
+      if (text.includes(term)) {
+        score += 1;
+        break;
+      }
+    }
+  }
+
+  for (const league of preferences.leagues ?? []) {
+    if (text.includes(league.toLowerCase())) score += 2;
+  }
+
+  return score;
+}
+
+// Re-ranks real club-news results by the user's preferences (topics first, then chosen
+// leagues); ties fall back to newest first. Applied per request so the cache stays neutral.
+function rankArticles(
+  articles: NewsArticle[],
+  preferences?: NewsRankingPreferences
+): NewsArticle[] {
+  if (!preferences) return articles;
+
+  const hasRanking = Boolean(preferences.topics?.length) || Boolean(preferences.leagues?.length);
+  if (!hasRanking) return articles;
+
+  return [...articles].sort((a, b) => {
+    const diff = affinityScore(b, preferences) - affinityScore(a, preferences);
+    return diff !== 0 ? diff : sortByPublishedAt(a, b);
+  });
+}
+
+type TeamNewsCacheEntry = { value: TeamNewsResult; expiresAt: number };
+const teamNewsCache = new Map<string, TeamNewsCacheEntry>();
+const teamNewsInFlight = new Map<string, Promise<TeamNewsResult>>();
+
+// Truthful mapper for club queries: only real headline/URL/date/source/image from the API.
+// Excerpt is the provider's own description — never replaced with invented copy.
+function mapClubArticle(article: Record<string, unknown>): NewsArticle | null {
+  const title = typeof article.title === 'string' ? article.title.trim() : '';
+  const url = typeof article.url === 'string' ? article.url.trim() : '';
+
+  if (!title || !url) return null;
+
+  const publishedAt =
+    typeof article.publishedAt === 'string' ? article.publishedAt : new Date().toISOString();
+  const description = typeof article.description === 'string' ? article.description.trim() : '';
+  const content = typeof article.content === 'string' ? article.content.trim() : '';
+  const rawSource = article.source as { name?: unknown } | null | undefined;
+  const source = typeof rawSource?.name === 'string' && rawSource.name ? rawSource.name : 'Live source';
+  const imageUrl = normalizeImageUrl(
+    typeof article.urlToImage === 'string' ? article.urlToImage : undefined
+  );
+
+  const excerptFields = [description, content].filter(Boolean);
+  const excerpt = excerptFields.length
+    ? excerptFields[0]
+    : title;
+
+  return {
+    id: deterministicId(title, url, publishedAt),
+    title,
+    excerpt,
+    source,
+    date: normalizeDate(publishedAt),
+    imageId: `news-${(content.length || title.length) % 6 + 1}`,
+    imageUrl,
+    category: 'Football',
+    readTime: readTimeFromText(content || description),
+    articleUrl: url,
+    publishedAt,
+  };
+}
+
+// The club query already phrased the team name into the NewsAPI search, but to keep the section
+// honest we only keep articles that actually mention the club in their visible title/description.
+function mentionsClub(article: NewsArticle, terms: string[]): boolean {
+  const text = searchableText(article.title, article.excerpt);
+  return terms.some((term) => text.includes(term));
+}
+
+// Same non-soccer noise guards as the main feed (NFL/gridiron, other sports), but without the
+// strict league-marker gate so clubs like Wolves or Fulham pass when a story is clearly about them.
+function isClubArticleRelevant(article: NewsArticle): boolean {
+  const text = searchableText(article.title, article.excerpt);
+  if (hasAnyTerm(text, NON_SOCCER_HINTS)) return false;
+  if (hasAnyTerm(text, OTHER_SPORT_HINTS)) return false;
+  const source = article.source.toLowerCase();
+  return !BLOCKED_SOURCES.some((name) => source.includes(name));
+}
+
+async function fetchClubNews(clubName: string, aliases: string[]): Promise<TeamNewsResult> {
+  const lowerClub = clubName.trim().toLowerCase();
+  const distinctAliases = aliases
+    .map((alias) => alias.trim())
+    .filter(Boolean)
+    .filter((alias) => alias.toLowerCase() !== lowerClub);
+
+  const queries = [
+    `"${clubName}"`,
+    `"${clubName}" football`,
+    ...(distinctAliases.length
+      ? [`${distinctAliases.map((alias) => `"${alias}"`).join(' OR ')}`]
+      : []),
+  ];
+
+  let lastError: Error | null = null;
+
+  for (const query of queries) {
+    const endpoint = `${NEWS_API_BASE_URL}/everything?q=${encodeURIComponent(
+      query
+    )}&language=en&sortBy=publishedAt&pageSize=${TEAM_NEWS_PAGE_SIZE}`;
+
+    try {
+      const response = await fetch(endpoint, {
+        headers: {
+          'X-Api-Key': process.env.NEWS_API_KEY || '',
+          Accept: 'application/json',
+        },
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        lastError = new NewsProviderError(
+          response.status,
+          `NewsAPI returned ${response.status} ${response.statusText} for club query`
+        );
+        continue;
+      }
+
+      const terms = [clubName, ...aliases].map((term) => term.toLowerCase()).filter(Boolean);
+      const payload = (await response.json()) as { articles?: Record<string, unknown>[] };
+
+      const articles = [...(payload.articles ?? [])]
+        .map(mapClubArticle)
+        .filter((article): article is NewsArticle => Boolean(article))
+        .filter(isClubArticleRelevant)
+        .filter((article) => mentionsClub(article, terms))
+        .sort(sortByPublishedAt)
+        .slice(0, TEAM_NEWS_DISPLAY_LIMIT);
+
+      if (articles.length) {
+        return {
+          articles,
+          club: clubName,
+          provider: 'NewsAPI',
+          lastUpdated: new Date().toISOString(),
+          error: null,
+        };
+      }
+
+      lastError = new NewsProviderError(null, `No recent team news found for ${clubName}.`);
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error('Unknown club news fetch error');
+    }
+  }
+
+  return {
+    articles: [],
+    club: clubName,
+    provider: 'NewsAPI',
+    lastUpdated: new Date().toISOString(),
+    error: lastError ? lastError.message : `No recent team news found for ${clubName}.`,
+  };
+}
+
+async function loadClubNews(clubName: string, aliases: string[]): Promise<TeamNewsResult> {
+  const key = clubName.toLowerCase();
+  const existing = teamNewsCache.get(key);
+
+  try {
+    const value = await fetchClubNews(clubName, aliases);
+    teamNewsCache.set(key, { value, expiresAt: Date.now() + TEAM_NEWS_CACHE_TTL_MS });
+    return value;
+  } catch (error) {
+    const message =
+      error instanceof NewsProviderError ? error.message : (error as Error).message;
+    console.error(`[news] club "${clubName}" fetch failed`, error);
+    if (existing) {
+      return {
+        ...existing.value,
+        error: 'Live updates paused — showing last known news for this club.',
+      };
+    }
+    return {
+      articles: [],
+      club: clubName,
+      provider: 'NewsAPI',
+      lastUpdated: new Date().toISOString(),
+      error: message,
+    };
+  }
+}
+
+export async function getNewsForTeam(
+  clubName: string,
+  aliases: string[],
+  preferences?: NewsRankingPreferences
+): Promise<TeamNewsResult> {
+  const key = clubName.toLowerCase();
+
+  if (!newsApiConfigured()) {
+    return {
+      articles: [],
+      club: clubName,
+      provider: 'NewsAPI',
+      lastUpdated: new Date().toISOString(),
+      error: 'NEWS_API_KEY is not configured on the server.',
+    };
+  }
+
+  const existing = teamNewsCache.get(key);
+  if (existing && existing.expiresAt > Date.now()) {
+    return { ...existing.value, articles: rankArticles(existing.value.articles, preferences) };
+  }
+
+  const inFlight = teamNewsInFlight.get(key);
+  if (inFlight) {
+    const pending = await inFlight;
+    return { ...pending, articles: rankArticles(pending.articles, preferences) };
+  }
+
+  const pending = loadClubNews(clubName, aliases);
+  teamNewsInFlight.set(key, pending);
+  try {
+    const result = await pending;
+    return { ...result, articles: rankArticles(result.articles, preferences) };
+  } finally {
+    teamNewsInFlight.delete(key);
+  }
 }

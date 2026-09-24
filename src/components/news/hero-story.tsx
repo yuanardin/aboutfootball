@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { ArrowUpRight, Clock3 } from 'lucide-react';
 import type { NewsArticle } from '@/lib/types';
 import { getImageById } from '@/lib/utils';
+import { SaveArticleButton } from './save-article-button';
 
 export function HeroStory({ article }: { article: NewsArticle }) {
   const fallbackImage = getImageById(article.imageId);
@@ -34,6 +35,7 @@ export function HeroStory({ article }: { article: NewsArticle }) {
         ) : (
           <div className="absolute inset-0 bg-secondary" />
         )}
+        <SaveArticleButton article={article} className="z-30" />
         <div
           className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-black/10"
           aria-hidden="true"

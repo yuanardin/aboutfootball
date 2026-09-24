@@ -250,7 +250,7 @@ export default function RegisterPage() {
               </Button>
 
               <p className="mt-4 text-center text-xs leading-5 text-muted-foreground">
-                Your ScoreCast account will unlock saved articles and AI history in the near future.
+                Your ScoreCast account gives you saved articles, preferences, and match alerts. AI history is coming soon.
               </p>
             </form>
           </CardContent>

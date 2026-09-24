@@ -88,6 +88,20 @@ export type FootballDataStandingsResponse = {
   }>;
 };
 
+export type FootballDataTeamsResponse = {
+  count: number;
+  filters: Record<string, unknown>;
+  competition: FootballDataCompetition;
+  season?: FootballDataSeason;
+  teams: FootballDataTeam[];
+};
+
+export type FootballDataTeamMatchesResponse = {
+  count: number;
+  filters: Record<string, unknown>;
+  matches: FootballDataMatch[];
+};
+
 export type FootballDataSource = 'live' | 'demo';
 
 export type FootballDataMeta = {

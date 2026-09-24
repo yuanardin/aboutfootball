@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { ArrowUpRight, Clock3 } from 'lucide-react';
 import type { NewsArticle } from '@/lib/types';
 import { cn, getImageById } from '@/lib/utils';
+import { SaveArticleButton } from './save-article-button';
 
 type NewsCardProps = { article: NewsArticle; featured?: boolean; priority?: boolean };
 
@@ -46,6 +47,7 @@ export function NewsCard({ article, featured = false, priority = false }: NewsCa
         ) : (
           <div className="absolute inset-0 bg-secondary" />
         )}
+        <SaveArticleButton article={article} />
       </div>
       <div className={cn('flex flex-col', featured ? 'p-6 sm:p-8' : 'p-5')}>
         <div className="mb-3 flex items-center gap-2">
