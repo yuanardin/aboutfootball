@@ -27,7 +27,7 @@ export default async function StandingsPage() {
           <p className="mt-4 max-w-xl text-base leading-7 text-muted-foreground">
             {isLive
               ? `${meta.competition} ${meta.season} — positions, goal difference and the last five match results for every club, at a glance.`
-              : 'Final standings for the 2023/24 season — positions, goal difference and the last five match results for every club, at a glance.'}
+              : 'Live standings could not be reached right now — the league table will appear here once the provider is reachable.'}
           </p>
         </div>
         <span className="chip w-fit shrink-0 sm:mb-1">
@@ -37,21 +37,21 @@ export default async function StandingsPage() {
               Live · {meta.season}
             </>
           ) : (
-            'Demo records · 2023/24'
+            'Live data unavailable'
           )}
         </span>
       </section>
 
       <section className="mt-10">
         <SectionHeader
-          eyebrow={isLive ? `Live table · ${meta.season}${meta.matchday ? ` · MD ${meta.matchday}` : ''}` : 'Final standings'}
+          eyebrow={isLive ? `Live table · ${meta.season}${meta.matchday ? ` · MD ${meta.matchday}` : ''}` : 'Live table unavailable'}
           title="All clubs"
           description="Sorted by points, then goal difference. Hover a row to scan a club quickly."
         />
         <StandingsTable
           standings={standings}
           title={meta.competition}
-          subtitle={isLive ? `${meta.season} · ${meta.matchday ? `matchday ${meta.matchday}` : 'live table'}` : '2023/24 · final table'}
+          subtitle={isLive ? `${meta.season} · ${meta.matchday ? `matchday ${meta.matchday}` : 'live table'}` : 'Live table unavailable'}
         />
 
         <p className="mt-4 flex items-start gap-2 text-sm leading-6 text-muted-foreground">
@@ -60,8 +60,8 @@ export default async function StandingsPage() {
             {isLive
               ? `Live table from ${meta.provider} (${meta.competition}, ${meta.season}). Updated ${new Date(
                   meta.lastUpdated
-                ).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' })}.`
-              : 'Demo dataset — Premier League 2023/24 final standings for illustration. Live league tables will appear once a football-data provider is connected.'}
+                ).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })} UTC.`
+              : 'Live data unavailable — the provider has no current standings to display right now.'}
           </span>
         </p>
       </section>

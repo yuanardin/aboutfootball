@@ -86,7 +86,7 @@ export function ResultsView({
               Live · {meta.competition} · {meta.season}
             </>
           ) : (
-            'Demo records · Jul 2024'
+            'Live data unavailable'
           )}
         </span>
       </header>
@@ -178,7 +178,7 @@ export function ResultsView({
               dateIndex === todayIndex
                 ? isLive
                   ? 'There are no completed matches in this competition on the latest matchday yet. Check back after the weekend.'
-                  : 'There are no matches in this competition on the latest matchday yet. Results will appear when a football-data source is connected.'
+                  : 'There are no completed matches on the latest matchday yet — live results will appear once the provider is reachable.'
                 : 'No completed matches on this matchday for the selected competition. Try another day or competition.'
             }
             action={
@@ -197,10 +197,8 @@ export function ResultsView({
                   resultDates.length === 1 ? 'matchday' : 'matchdays'
                 } from ${meta.provider} (${meta.competition}, ${meta.season}). Updated ${new Date(
                   meta.lastUpdated
-                ).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' })}.`
-              : `Demo dataset — ${matches.length} completed matches across ${
-                  resultDates.length
-                } ${resultDates.length === 1 ? 'matchday' : 'matchdays'}. Live scores will appear once a football-data provider is connected.`}
+                ).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })} UTC.`
+              : `Live data unavailable — ${matches.length} completed matches were not loaded from the provider. Please try again shortly.`}
           </span>
         </p>
       </div>

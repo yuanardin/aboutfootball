@@ -46,7 +46,7 @@ export function StandingsTable({ standings, compact = false, title = 'Premier Le
         </span>
         <div>
           <h2 className="font-headline text-sm font-bold">{title}</h2>
-          <p className="text-[11px] text-muted-foreground">{subtitle ?? '2023/24 · final table'}</p>
+          <p className="text-[11px] text-muted-foreground">{subtitle ?? 'Live table unavailable'}</p>
         </div>
       </div>
       <div className="overflow-x-auto">
@@ -94,7 +94,7 @@ export function StandingsTable({ standings, compact = false, title = 'Premier Le
                   </td>
                   <th scope="row" className={cn('sticky left-10 z-10 bg-card px-3 py-3 text-left font-normal')}>
                     <div className="flex items-center gap-2.5">
-                      {hasLogo && (
+                      {hasLogo && (logo?.imageUrl || standing.team.crest) ? (
                         <Image
                           src={standing.team.crest ?? logo?.imageUrl ?? ''}
                           alt=""
@@ -103,6 +103,10 @@ export function StandingsTable({ standings, compact = false, title = 'Premier Le
                           className="h-6 w-6 shrink-0 object-contain"
                           data-ai-hint={logo?.imageHint}
                         />
+                      ) : (
+                        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full border border-border bg-secondary text-[10px] font-bold text-muted-foreground">
+                          {standing.team.name.trim().charAt(0).toUpperCase() || 'T'}
+                        </span>
                       )}
                       <span className="whitespace-nowrap font-semibold text-foreground">{standing.team.name}</span>
                     </div>

@@ -51,7 +51,7 @@ export async function Footer() {
             />
             {liveConnected
               ? 'Live football-data feeds connected.'
-              : 'Demo dataset — live football-data feeds are not connected yet.'}
+              : 'Live football-data feeds unavailable right now.'}
           </p>
         </div>
         <div className="grid grid-cols-1 gap-8 sm:grid-cols-3">

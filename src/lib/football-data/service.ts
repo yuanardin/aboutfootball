@@ -16,7 +16,6 @@ import type {
   ResultsPayload,
   StandingsPayload,
 } from './types';
-import { leagueStandings, matchResults } from '@/lib/data';
 import type { MatchResult, Standing } from '@/lib/types';
 
 const RESULTS_CACHE_TTL_MS = 2 * 60 * 1000;
@@ -33,17 +32,56 @@ export function footballDataConfigured(): boolean {
   return Boolean(process.env.FOOTBALL_DATA_API_KEY);
 }
 
-function logFallback(error: unknown, scope: string): void {
+function liveDataUnavailableMeta(scope: string, message: string): FootballDataMeta {
+  return {
+    source: 'unavailable',
+    provider: 'football-data.org',
+    competition: 'Premier League',
+    code: COMPETITION_CODE,
+    season: 'Unavailable',
+    matchday: null,
+    lastUpdated: new Date().toISOString(),
+    error: `Live ${scope} unavailable: ${message}`,
+  };
+}
+
+function unavailableResultsPayload(message: string): ResultsPayload {
+  return {
+    matches: [],
+    meta: liveDataUnavailableMeta('results', message),
+  };
+}
+
+function unavailableStandingsPayload(message: string): StandingsPayload {
+  return {
+    standings: [],
+    meta: liveDataUnavailableMeta('standings', message),
+  };
+}
+
+function logFailure(error: unknown, scope: string): void {
   if (error instanceof FootballDataProviderError) {
     const label = error.kind === 'http' ? `HTTP ${error.status}` : error.kind.toUpperCase();
-    console.error(
-      `[football-data] ${scope} failed (${label}): ${error.message}. Falling back to demo data.`
-    );
+    console.error(`[football-data] ${scope} failed (${label}): ${error.message}`);
     return;
   }
-  console.error(
-    `[football-data] ${scope} failed (NETWORK): ${(error as Error).message}. Falling back to demo data.`
-  );
+  console.error(`[football-data] ${scope} failed (NETWORK): ${(error as Error).message}`);
+}
+
+export function footballDataErrorMessage(error: unknown, scope: string): string {
+  if (error instanceof FootballDataProviderError) {
+    if (error.kind === 'timeout') {
+      return `The live ${scope} request timed out. Please try again shortly.`;
+    }
+    if (error.kind === 'http') {
+      return `The live ${scope} provider returned an error (${error.status}). Please try again shortly.`;
+    }
+    if (error.kind === 'config') {
+      return 'The football data provider is not configured on the server.';
+    }
+    return `Could not reach the live ${scope} provider right now. Please try again shortly.`;
+  }
+  return `Could not reach the live ${scope} provider right now. Please try again shortly.`;
 }
 
 function toDateKey(date: Date): string {
@@ -90,7 +128,7 @@ function parseForm(form?: string | null): Standing['form'] {
 
 export async function getResults(): Promise<ResultsPayload> {
   if (!footballDataConfigured()) {
-    return demoResultsPayload();
+    return unavailableResultsPayload('FOOTBALL_DATA_API_KEY is not configured on the server.');
   }
 
   try {
@@ -130,14 +168,14 @@ export async function getResults(): Promise<ResultsPayload> {
       return { matches, meta };
     });
   } catch (error) {
-    logFallback(error, 'results');
-    return demoResultsPayload();
+    logFailure(error, 'results');
+    return unavailableResultsPayload(footballDataErrorMessage(error, 'results'));
   }
 }
 
 export async function getStandings(): Promise<StandingsPayload> {
   if (!footballDataConfigured()) {
-    return demoStandingsPayload();
+    return unavailableStandingsPayload('FOOTBALL_DATA_API_KEY is not configured on the server.');
   }
 
   try {
@@ -171,8 +209,8 @@ export async function getStandings(): Promise<StandingsPayload> {
       return { standings, meta };
     });
   } catch (error) {
-    logFallback(error, 'standings');
-    return demoStandingsPayload();
+    logFailure(error, 'standings');
+    return unavailableStandingsPayload(footballDataErrorMessage(error, 'standings'));
   }
 }
 
@@ -196,7 +234,7 @@ export async function getCompetitionTeams(): Promise<CompetitionTeamsResult> {
     });
     return { teams, error: null };
   } catch (error) {
-    logFallback(error, 'teams');
+    logFailure(error, 'teams');
     return {
       teams: [],
       error: 'Unable to load the club list right now. Please try again later.',
@@ -298,7 +336,7 @@ async function loadTeamMatchesFromApi(teamId: number): Promise<TeamMatchesResult
 
     return value;
   } catch (error) {
-    logFallback(error, `team ${teamId} matches`);
+    logFailure(error, `team ${teamId} matches`);
     if (existing) {
       return {
         ...existing.value,
@@ -347,30 +385,4 @@ export async function getTeamMatches(teamId: number): Promise<TeamMatchesResult>
   } finally {
     teamMatchesInFlight.delete(key);
   }
-}
-
-function demoResultsPayload(): ResultsPayload {
-  return {
-    matches: [...matchResults],
-    meta: demoMeta(),
-  };
-}
-
-function demoStandingsPayload(): StandingsPayload {
-  return {
-    standings: [...leagueStandings],
-    meta: demoMeta(),
-  };
-}
-
-function demoMeta(): FootballDataMeta {
-  return {
-    source: 'demo',
-    provider: 'football-data.org',
-    competition: 'Premier League',
-    code: COMPETITION_CODE,
-    season: '2023/24',
-    matchday: null,
-    lastUpdated: new Date().toISOString(),
-  };
 }

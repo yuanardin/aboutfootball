@@ -7,7 +7,7 @@ export function errorState(message?: string): ErrorCopy {
     return {
       title: 'The newsroom is unreachable',
       description:
-        'The live news provider could not be reached. Try again in a moment — demo stories will show meanwhile.',
+        'The live news provider could not be reached. Try again in a moment — we only feature real, up-to-the-minute stories.',
     };
   }
 
@@ -15,7 +15,7 @@ export function errorState(message?: string): ErrorCopy {
     return {
       title: 'The live feed is unavailable',
       description:
-        'The football data provider returned no usable data. Try again shortly — demo records will appear meanwhile.',
+        'The football data provider returned no usable data. Try again shortly — we only show live, up-to-date records.',
     };
   }
 

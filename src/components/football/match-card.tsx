@@ -56,9 +56,25 @@ function TeamLogo({
   alt: string;
   size?: number;
 }) {
+  const src = crest ?? logo?.imageUrl;
+
+  if (!src) {
+    return (
+      <span
+        className={cn(
+          'grid shrink-0 place-items-center rounded-full border border-border bg-secondary font-bold text-muted-foreground',
+          size === 24 ? 'h-6 w-6 text-[10px]' : 'h-5 w-5 text-[9px]'
+        )}
+        aria-label={alt}
+      >
+        {alt.trim().charAt(0).toUpperCase() || 'T'}
+      </span>
+    );
+  }
+
   return (
     <Image
-      src={crest ?? logo?.imageUrl ?? ''}
+      src={src}
       alt={alt}
       width={size}
       height={size}

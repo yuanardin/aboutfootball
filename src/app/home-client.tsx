@@ -2,10 +2,12 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Bot, Radio, Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/football/empty-state';
+import { ErrorState } from '@/components/football/error-state';
 import { SectionHeader } from '@/components/football/section-header';
 import { MatchCard } from '@/components/football/match-card';
 import { StandingsTable } from '@/components/football/standings-table';
@@ -21,7 +23,12 @@ import type { FootballDataMeta } from '@/lib/football-data/types';
 function formatUpdated(value: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return 'just now';
-  return date.toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' });
+  return date.toLocaleTimeString('en', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'UTC',
+    timeZoneName: 'short',
+  });
 }
 
 export function HomeClient({
@@ -29,6 +36,8 @@ export function HomeClient({
   standings,
   resultsMeta,
   standingsMeta,
+  resultsError,
+  standingsError,
   articles,
   newsProvider,
   newsUpdated,
@@ -36,8 +45,10 @@ export function HomeClient({
 }: {
   matches: MatchResult[];
   standings: Standing[];
-  resultsMeta: FootballDataMeta;
-  standingsMeta: FootballDataMeta;
+  resultsMeta: FootballDataMeta | null;
+  standingsMeta: FootballDataMeta | null;
+  resultsError: string | null;
+  standingsError: string | null;
   articles: NewsArticle[];
   newsProvider: string;
   newsUpdated: string;
@@ -45,6 +56,7 @@ export function HomeClient({
 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
+  const router = useRouter();
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
@@ -85,9 +97,9 @@ export function HomeClient({
     setActiveCategory('All');
   };
 
-  const resultsLive = resultsMeta.source === 'live';
-  const standingsLive = standingsMeta.source === 'live';
-  const latestStandingSeason = standingsLive ? standingsMeta.season : '2023/24 · final table';
+  const resultsLive = resultsMeta?.source === 'live';
+  const standingsLive = standingsMeta?.source === 'live';
+  const latestStandingSeason = standingsLive ? standingsMeta.season : 'Unavailable';
 
   return (
     <div className="pb-20">
@@ -183,7 +195,10 @@ export function HomeClient({
         </div>
       </section>
 
-      <YourTeamSection matches={matches} competition={standingsMeta.competition} />
+      <YourTeamSection
+        matches={matches}
+        competition={standingsMeta?.competition ?? resultsMeta?.competition ?? ''}
+      />
 
       <YourStandingsSection />
 
@@ -197,37 +212,60 @@ export function HomeClient({
               eyebrow="Final whistle"
               title="Latest results"
               description={
-                resultsLive
-                  ? `${resultsMeta.competition} ${resultsMeta.season} — final scores from the latest available matchday.`
-                  : 'Demo records — final scores from the latest available matchday.'
+                resultsError
+                  ? 'The live results feed could not be reached right now.'
+                  : resultsLive && resultsMeta
+                    ? `${resultsMeta.competition} ${resultsMeta.season} — final scores from the latest available matchday.`
+                    : 'Live results unavailable right now — please try again shortly.'
               }
               href="/results"
               action="All results"
             />
-            <div className="space-y-2.5">
-              {matches.slice(0, 3).map((match) => (
-                <MatchCard key={match.id} match={match} />
-              ))}
-            </div>
+            {resultsError ? (
+              <ErrorState
+                title="Results unavailable"
+                description={resultsError}
+                onRetry={() => router.refresh()}
+              />
+            ) : (
+              <div className="space-y-2.5">
+                {matches.slice(0, 3).map((match) => (
+                  <MatchCard key={match.id} match={match} />
+                ))}
+              </div>
+            )}
             <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
               <Radio className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
               <span>
-                {resultsLive
-                  ? `Live results from ${resultsMeta.provider} (${resultsMeta.competition}, ${resultsMeta.season}).`
-                  : 'Demo data from July 2024 — live scores will appear here when a data provider is connected.'}
+                {resultsError
+                  ? 'Live scores will return automatically once the provider is reachable again.'
+                  : resultsLive && resultsMeta
+                    ? `Live results from ${resultsMeta.provider} (${resultsMeta.competition}, ${resultsMeta.season}).`
+                    : 'Live data unavailable right now — the football provider is not returning current scores.'}
               </span>
             </p>
           </div>
-          {standings.length > 0 && (
+          {standingsError ? (
             <div className="min-w-0">
-              <SectionHeader eyebrow="League table" title={standingsMeta.competition} href="/standings" action="Full table" />
-              <StandingsTable
-                standings={standings}
-                compact
-                title={standingsMeta.competition}
-                subtitle={latestStandingSeason}
+              <SectionHeader eyebrow="League table" title="Standings" href="/standings" action="Full table" />
+              <ErrorState
+                title="Standings unavailable"
+                description={standingsError}
+                onRetry={() => router.refresh()}
               />
             </div>
+          ) : (
+            standings.length > 0 && (
+              <div className="min-w-0">
+                <SectionHeader eyebrow="League table" title={standingsMeta?.competition ?? ''} href="/standings" action="Full table" />
+                <StandingsTable
+                  standings={standings}
+                  compact
+                  title={standingsMeta?.competition ?? ''}
+                  subtitle={latestStandingSeason}
+                />
+              </div>
+            )
           )}
         </section>
 

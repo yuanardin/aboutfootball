@@ -102,7 +102,7 @@ export type FootballDataTeamMatchesResponse = {
   matches: FootballDataMatch[];
 };
 
-export type FootballDataSource = 'live' | 'demo';
+export type FootballDataSource = 'live' | 'unavailable';
 
 export type FootballDataMeta = {
   source: FootballDataSource;
@@ -112,6 +112,7 @@ export type FootballDataMeta = {
   season: string;
   matchday: number | null;
   lastUpdated: string;
+  error?: string | null;
 };
 
 export type ResultsPayload = { matches: MatchResult[]; meta: FootballDataMeta };
