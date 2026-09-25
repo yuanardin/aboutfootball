@@ -14,7 +14,7 @@ import { cn, getImageById } from '@/lib/utils';
 
 type NewsExplorerProps = {
   articles: NewsArticle[];
-  source: 'live';
+  source: 'live' | 'unavailable';
   provider: string;
   lastUpdated: string;
   error?: string | null;
@@ -88,9 +88,11 @@ function FeaturedStory({ article }: { article: NewsArticle }) {
   );
 }
 
-export function NewsExplorer({ articles, provider, lastUpdated, error }: NewsExplorerProps) {
+export function NewsExplorer({ articles, source, provider, lastUpdated, error }: NewsExplorerProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
+
+  const feedUnavailable = source === 'unavailable' || Boolean(error) || articles.length === 0;
 
   const categories = useMemo(
     () => [
@@ -140,14 +142,17 @@ export function NewsExplorer({ articles, provider, lastUpdated, error }: NewsExp
         </section>
         <div className="flex flex-col items-start gap-2 sm:mb-1">
           <span className="chip w-fit shrink-0">
-            <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-success" aria-hidden="true" />
-            Live news
+            <span
+              className={feedUnavailable ? 'mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-warning' : 'mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-success'}
+              aria-hidden="true"
+            />
+            {feedUnavailable ? 'Live data unavailable' : 'Live news'}
           </span>
           <span className="text-xs text-muted-foreground">Updated {formatLastUpdated(lastUpdated)}</span>
         </div>
       </header>
 
-      {error || articles.length === 0 ? (
+      {feedUnavailable ? (
         <section
           role="alert"
           aria-label="News unavailable"
@@ -158,8 +163,8 @@ export function NewsExplorer({ articles, provider, lastUpdated, error }: NewsExp
           </span>
           <h2 className="text-card-title mt-4 font-headline text-xl font-bold">News unavailable right now</h2>
           <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-            The live football news feed could not be reached{error ? ` (${error})` : ''}. Check back
-            shortly — we only show real, up-to-the-minute football stories here.
+            The live football news feed is not available right now{error ? ` (${error})` : ''}. Check
+            back shortly — we only show real, up-to-the-minute football stories here.
           </p>
           <Button asChild variant="outline" className="mt-6">
             <Link href="/news">Refresh feed</Link>

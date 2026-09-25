@@ -73,7 +73,9 @@ export async function getStandingsAction(): Promise<StandingsActionResult> {
     return {
       standings: [],
       meta: null,
-      error: 'Live standings are not available right now.',
+      error:
+        payload.meta.error ??
+        'Live standings are not available right now. Please try again shortly.',
     };
   }
 

@@ -10,8 +10,9 @@ const NEWS_CACHE_TTL_MS = 10 * 60 * 1000;
 const NEWS_CACHE_KEY = 'news:live:feed';
 const NEWS_PAGE_SIZE = 50;
 const NEWS_DISPLAY_LIMIT = 12;
+const NEWS_REQUEST_TIMEOUT_MS = 12_000;
 
-export type NewsSourceStatus = 'live';
+export type NewsSourceStatus = 'live' | 'unavailable';
 
 export type NewsArticlesResult = {
   articles: NewsArticle[];
@@ -25,9 +26,12 @@ type CacheEntry = { value: NewsArticlesResult; expiresAt: number };
 
 const cache = new Map<string, CacheEntry>();
 
+export type NewsFailureKind = 'config' | 'http' | 'network' | 'timeout';
+
 export class NewsProviderError extends Error {
   constructor(
     public readonly status: number | null,
+    public readonly kind: NewsFailureKind,
     message: string
   ) {
     super(message);
@@ -37,6 +41,83 @@ export class NewsProviderError extends Error {
 
 export function newsApiConfigured(): boolean {
   return Boolean(process.env.NEWS_API_KEY);
+}
+
+function newsApiKey(): string {
+  const key = process.env.NEWS_API_KEY;
+  if (!key) {
+    throw new NewsProviderError(null, 'config', 'NEWS_API_KEY is not set on the server');
+  }
+  return key;
+}
+
+type NewsApiPayload = { articles?: Record<string, unknown>[] };
+
+async function newsApiRequest(endpoint: string): Promise<NewsApiPayload> {
+  const key = newsApiKey();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), NEWS_REQUEST_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(endpoint, {
+      headers: {
+        'X-Api-Key': key,
+        Accept: 'application/json',
+      },
+      signal: controller.signal,
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      throw new NewsProviderError(
+        response.status,
+        'http',
+        `NewsAPI returned ${response.status} ${response.statusText}`
+      );
+    }
+
+    return (await response.json()) as NewsApiPayload;
+  } catch (error) {
+    if (error instanceof NewsProviderError) {
+      throw error;
+    }
+    if (controller.signal.aborted || (error as Error)?.name === 'AbortError') {
+      throw new NewsProviderError(
+        null,
+        'timeout',
+        `NewsAPI request timed out after ${NEWS_REQUEST_TIMEOUT_MS}ms`
+      );
+    }
+    throw new NewsProviderError(
+      null,
+      'network',
+      `NewsAPI request failed: ${(error as Error).message}`
+    );
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+export function newsErrorMessage(error: unknown, scope = 'news'): string {
+  if (error instanceof NewsProviderError) {
+    if (error.kind === 'config') {
+      return 'The news provider is not configured on the server.';
+    }
+    if (error.kind === 'timeout') {
+      return `The live ${scope} request timed out. Please try again shortly.`;
+    }
+    if (error.kind === 'network') {
+      return `Could not reach the live ${scope} provider right now. Please try again shortly.`;
+    }
+    if (error.status === 401 || error.status === 403) {
+      return 'The live news provider rejected the configured API key. Please try again later.';
+    }
+    if (error.status === 429) {
+      return 'The live news provider rate limit was reached. Please try again shortly.';
+    }
+    return `The live ${scope} provider returned an error (${error.status ?? 'unknown'}). Please try again shortly.`;
+  }
+  return `Could not reach the live ${scope} provider right now. Please try again shortly.`;
 }
 
 function normalizeDate(input?: string): string {
@@ -299,7 +380,7 @@ function sortFeedArticles(articles: NewsArticle[]): NewsArticle[] {
 function unavailableResult(message: string): NewsArticlesResult {
   return {
     articles: [],
-    source: 'live',
+    source: 'unavailable',
     provider: 'NewsAPI',
     lastUpdated: new Date().toISOString(),
     error: message,
@@ -326,7 +407,7 @@ function mapLiveArticle(article: Record<string, unknown>): NewsArticle | null {
   const story: NewsArticle = {
     id: deterministicId(title, url, publishedAt),
     title,
-    excerpt: description || content || 'Latest football coverage from a live source.',
+    excerpt: description || content || title,
     source,
     date: normalizeDate(publishedAt),
     imageId: `news-${(content.length || title.length) % 6 + 1}`,
@@ -348,7 +429,8 @@ async function fetchNewsFeed(): Promise<NewsArticlesResult> {
     'football news',
   ];
 
-  let lastError: Error | null = null;
+  let lastError: unknown = null;
+  let providerResponded = false;
 
   for (const query of queries) {
     const endpoint = `${NEWS_API_BASE_URL}/everything?q=${encodeURIComponent(
@@ -356,23 +438,9 @@ async function fetchNewsFeed(): Promise<NewsArticlesResult> {
     )}&language=en&sortBy=publishedAt&pageSize=${NEWS_PAGE_SIZE}`;
 
     try {
-      const response = await fetch(endpoint, {
-        headers: {
-          'X-Api-Key': process.env.NEWS_API_KEY || '',
-          Accept: 'application/json',
-        },
-        cache: 'no-store',
-      });
+      const payload = await newsApiRequest(endpoint);
+      providerResponded = true;
 
-      if (!response.ok) {
-        lastError = new NewsProviderError(
-          response.status,
-          `NewsAPI returned ${response.status} ${response.statusText}`
-        );
-        continue;
-      }
-
-      const payload = (await response.json()) as { articles?: Record<string, unknown>[] };
       const articles = sortFeedArticles(
         (payload.articles ?? [])
           .map(mapLiveArticle)
@@ -389,17 +457,15 @@ async function fetchNewsFeed(): Promise<NewsArticlesResult> {
           error: null,
         };
       }
-
-      lastError = new NewsProviderError(null, 'NewsAPI returned no football-related articles.');
     } catch (error) {
-      lastError = error instanceof Error ? error : new Error('Unknown news fetch error');
+      lastError = error;
     }
   }
 
   return unavailableResult(
-    lastError instanceof NewsProviderError && lastError.message
-      ? lastError.message
-      : 'NewsAPI returned no football-related articles.'
+    providerResponded
+      ? 'The live news provider responded but returned no football-related stories right now.'
+      : newsErrorMessage(lastError)
   );
 }
 
@@ -415,19 +481,21 @@ async function getCachedNewsFeed(): Promise<NewsArticlesResult> {
   try {
     result = await fetchNewsFeed();
   } catch (error) {
-    const message =
-      error instanceof NewsProviderError ? error.message : (error as Error).message;
     console.error('[news] live fetch failed, showing unavailable state', error);
-    return unavailableResult(message);
+    return unavailableResult(newsErrorMessage(error));
   }
 
-  cache.set(NEWS_CACHE_KEY, { value: result, expiresAt: now + NEWS_CACHE_TTL_MS });
+  if (result.error) {
+    return result;
+  }
+
+  cache.set(NEWS_CACHE_KEY, { value: result, expiresAt: Date.now() + NEWS_CACHE_TTL_MS });
   return result;
 }
 
 export async function getNewsArticles(): Promise<NewsArticlesResult> {
   if (!newsApiConfigured()) {
-    return unavailableResult('NEWS_API_KEY is not configured on the server.');
+    return unavailableResult('The news provider is not configured on the server.');
   }
 
   return getCachedNewsFeed();
@@ -610,7 +678,8 @@ async function fetchClubNews(clubName: string, aliases: string[]): Promise<TeamN
       : []),
   ];
 
-  let lastError: Error | null = null;
+  let lastError: unknown = null;
+  let providerResponded = false;
 
   for (const query of queries) {
     const endpoint = `${NEWS_API_BASE_URL}/everything?q=${encodeURIComponent(
@@ -618,24 +687,10 @@ async function fetchClubNews(clubName: string, aliases: string[]): Promise<TeamN
     )}&language=en&sortBy=publishedAt&pageSize=${TEAM_NEWS_PAGE_SIZE}`;
 
     try {
-      const response = await fetch(endpoint, {
-        headers: {
-          'X-Api-Key': process.env.NEWS_API_KEY || '',
-          Accept: 'application/json',
-        },
-        cache: 'no-store',
-      });
-
-      if (!response.ok) {
-        lastError = new NewsProviderError(
-          response.status,
-          `NewsAPI returned ${response.status} ${response.statusText} for club query`
-        );
-        continue;
-      }
+      const payload = await newsApiRequest(endpoint);
+      providerResponded = true;
 
       const terms = [clubName, ...aliases].map((term) => term.toLowerCase()).filter(Boolean);
-      const payload = (await response.json()) as { articles?: Record<string, unknown>[] };
 
       const articles = [...(payload.articles ?? [])]
         .map(mapClubArticle)
@@ -654,10 +709,8 @@ async function fetchClubNews(clubName: string, aliases: string[]): Promise<TeamN
           error: null,
         };
       }
-
-      lastError = new NewsProviderError(null, `No recent team news found for ${clubName}.`);
     } catch (error) {
-      lastError = error instanceof Error ? error : new Error('Unknown club news fetch error');
+      lastError = error;
     }
   }
 
@@ -666,7 +719,9 @@ async function fetchClubNews(clubName: string, aliases: string[]): Promise<TeamN
     club: clubName,
     provider: 'NewsAPI',
     lastUpdated: new Date().toISOString(),
-    error: lastError ? lastError.message : `No recent team news found for ${clubName}.`,
+    error: providerResponded
+      ? null
+      : newsErrorMessage(lastError, 'team news'),
   };
 }
 
@@ -676,11 +731,12 @@ async function loadClubNews(clubName: string, aliases: string[]): Promise<TeamNe
 
   try {
     const value = await fetchClubNews(clubName, aliases);
+    if (value.error) {
+      return value;
+    }
     teamNewsCache.set(key, { value, expiresAt: Date.now() + TEAM_NEWS_CACHE_TTL_MS });
     return value;
   } catch (error) {
-    const message =
-      error instanceof NewsProviderError ? error.message : (error as Error).message;
     console.error(`[news] club "${clubName}" fetch failed`, error);
     if (existing) {
       return {
@@ -693,7 +749,7 @@ async function loadClubNews(clubName: string, aliases: string[]): Promise<TeamNe
       club: clubName,
       provider: 'NewsAPI',
       lastUpdated: new Date().toISOString(),
-      error: message,
+      error: newsErrorMessage(error, 'team news'),
     };
   }
 }
@@ -711,7 +767,7 @@ export async function getNewsForTeam(
       club: clubName,
       provider: 'NewsAPI',
       lastUpdated: new Date().toISOString(),
-      error: 'NEWS_API_KEY is not configured on the server.',
+      error: 'The news provider is not configured on the server.',
     };
   }
 

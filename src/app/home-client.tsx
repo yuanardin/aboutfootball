@@ -289,7 +289,7 @@ export function HomeClient({
               </span>
               <h3 className="text-card-title text-base">News feed unavailable</h3>
               <p className="mt-1.5 max-w-sm text-sm leading-6 text-muted-foreground">
-                The live football news provider could not be reached
+                The live football news feed is not available right now
                 {newsError ? ` (${newsError})` : ''}. Check back shortly — we only feature real,
                 up-to-the-minute football stories.
               </p>

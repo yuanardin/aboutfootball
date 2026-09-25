@@ -22,7 +22,7 @@ export default async function Home() {
 
   const fallbackNews: NewsArticlesResult = {
     articles: [],
-    source: 'live',
+    source: 'unavailable',
     provider: '',
     lastUpdated: '',
     error: 'The live news provider could not be reached right now.',

@@ -23,6 +23,7 @@ const STANDINGS_CACHE_TTL_MS = 10 * 60 * 1000;
 const TEAMS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 const COMPETITION_CODE = 'PL';
+const NOT_CONFIGURED_MESSAGE = 'The football data provider is not configured on the server.';
 
 const RESULTS_CACHE_KEY = 'football-data:pl:matches';
 const STANDINGS_CACHE_KEY = 'football-data:pl:standings';
@@ -32,7 +33,7 @@ export function footballDataConfigured(): boolean {
   return Boolean(process.env.FOOTBALL_DATA_API_KEY);
 }
 
-function liveDataUnavailableMeta(scope: string, message: string): FootballDataMeta {
+function liveDataUnavailableMeta(message: string): FootballDataMeta {
   return {
     source: 'unavailable',
     provider: 'football-data.org',
@@ -41,21 +42,21 @@ function liveDataUnavailableMeta(scope: string, message: string): FootballDataMe
     season: 'Unavailable',
     matchday: null,
     lastUpdated: new Date().toISOString(),
-    error: `Live ${scope} unavailable: ${message}`,
+    error: message,
   };
 }
 
 function unavailableResultsPayload(message: string): ResultsPayload {
   return {
     matches: [],
-    meta: liveDataUnavailableMeta('results', message),
+    meta: liveDataUnavailableMeta(message),
   };
 }
 
 function unavailableStandingsPayload(message: string): StandingsPayload {
   return {
     standings: [],
-    meta: liveDataUnavailableMeta('standings', message),
+    meta: liveDataUnavailableMeta(message),
   };
 }
 
@@ -74,10 +75,16 @@ export function footballDataErrorMessage(error: unknown, scope: string): string 
       return `The live ${scope} request timed out. Please try again shortly.`;
     }
     if (error.kind === 'http') {
+      if (error.status === 401 || error.status === 403) {
+        return 'The football data provider rejected the configured API key. Please try again later.';
+      }
+      if (error.status === 429) {
+        return 'The football data provider rate limit was reached. Please try again shortly.';
+      }
       return `The live ${scope} provider returned an error (${error.status}). Please try again shortly.`;
     }
     if (error.kind === 'config') {
-      return 'The football data provider is not configured on the server.';
+      return NOT_CONFIGURED_MESSAGE;
     }
     return `Could not reach the live ${scope} provider right now. Please try again shortly.`;
   }
@@ -128,7 +135,7 @@ function parseForm(form?: string | null): Standing['form'] {
 
 export async function getResults(): Promise<ResultsPayload> {
   if (!footballDataConfigured()) {
-    return unavailableResultsPayload('FOOTBALL_DATA_API_KEY is not configured on the server.');
+    return unavailableResultsPayload(NOT_CONFIGURED_MESSAGE);
   }
 
   try {
@@ -175,7 +182,7 @@ export async function getResults(): Promise<ResultsPayload> {
 
 export async function getStandings(): Promise<StandingsPayload> {
   if (!footballDataConfigured()) {
-    return unavailableStandingsPayload('FOOTBALL_DATA_API_KEY is not configured on the server.');
+    return unavailableStandingsPayload(NOT_CONFIGURED_MESSAGE);
   }
 
   try {
@@ -223,7 +230,7 @@ export async function getCompetitionTeams(): Promise<CompetitionTeamsResult> {
   if (!footballDataConfigured()) {
     return {
       teams: [],
-      error: 'FOOTBALL_DATA_API_KEY is not configured on the server.',
+      error: NOT_CONFIGURED_MESSAGE,
     };
   }
 
@@ -368,7 +375,7 @@ export async function getTeamMatches(teamId: number): Promise<TeamMatchesResult>
       upcoming: null,
       previous: null,
       live: null,
-      error: 'FOOTBALL_DATA_API_KEY is not configured on the server.',
+      error: NOT_CONFIGURED_MESSAGE,
       stale: false,
     };
   }
