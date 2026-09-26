@@ -123,12 +123,12 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-10">
-      <Card className="card-surface w-full max-w-md">
-        <CardHeader className="text-center">
+    <div className="flex min-h-[calc(100vh-4rem)] w-full items-center justify-center px-3 py-10 sm:px-4">
+      <Card className="card-surface w-full max-w-md min-w-0">
+        <CardHeader className="min-w-0 text-center">
           <p className="eyebrow">Account</p>
-          <h1 className="text-card-title text-2xl [text-wrap:balance]">Log in to ScoreCast</h1>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          <h1 className="text-card-title max-w-full text-2xl [text-wrap:balance]">Log in to ScoreCast</h1>
+          <p className="mt-2 max-w-full text-sm leading-6 text-muted-foreground [overflow-wrap:anywhere]">
             Back in the game — your teams, stories and picks, all in one place.
           </p>
         </CardHeader>

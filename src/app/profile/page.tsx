@@ -97,7 +97,7 @@ function ProfileLoadingSkeleton() {
 
 export default function ProfilePage() {
   const auth = useAuth();
-  const { data: user, isLoading } = useUser();
+  const { data: user, isLoading, isUnauthenticated, isReady } = useUser();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -111,13 +111,11 @@ export default function ProfilePage() {
   const displayNameRef = useRef<HTMLInputElement>(null);
   const photoUrlRef = useRef<HTMLInputElement>(null);
 
-  const redirecting = !isLoading && !user;
-
   useEffect(() => {
-    if (redirecting) {
+    if (isReady && isUnauthenticated) {
       router.replace('/login');
     }
-  }, [redirecting, router]);
+  }, [isReady, isUnauthenticated, router]);
 
   useEffect(() => {
     if (user) {
@@ -206,27 +204,29 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="page-shell py-10 sm:py-14">
-      <div className="mx-auto w-full max-w-2xl">
+    <div className="page-shell min-w-0 py-10 sm:py-14">
+      <div className="mx-auto w-full max-w-2xl min-w-0">
         <p className="eyebrow">Account</p>
-        <h1 className="mt-2 text-page-title [text-wrap:balance]">Your profile</h1>
-        <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">
+        <h1 className="mt-2 max-w-full text-page-title [text-wrap:balance]">Your profile</h1>
+        <p className="mt-3 max-w-full text-sm leading-6 text-muted-foreground [overflow-wrap:anywhere] sm:text-base">
           Manage how you show up on ScoreCast — your identity is stored securely with Firebase
           Authentication.
         </p>
 
-        <Card className="card-surface mt-8 p-6 sm:p-8">
+        <Card className="card-surface mt-8 min-w-0 p-6 sm:p-8">
           <CardContent className="p-0">
-            <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-center">
-              <Avatar className="h-20 w-20 ring-2 ring-primary/20">
+            <div className="flex w-full min-w-0 flex-col items-center gap-5 sm:flex-row sm:items-center">
+              <Avatar className="h-20 w-20 shrink-0 ring-2 ring-primary/20">
                 <AvatarImage src={user.photoURL ?? ''} alt={user.displayName ?? 'Profile photo'} />
                 <AvatarFallback className="text-xl">{initials}</AvatarFallback>
               </Avatar>
               <div className="min-w-0 flex-1 text-center sm:text-left">
-                <p className="text-card-title truncate text-lg sm:text-xl">
+                <p className="text-card-title min-w-0 truncate text-lg sm:text-xl">
                   {user.displayName || 'ScoreCast member'}
                 </p>
-                <p className="mt-1 truncate text-sm text-muted-foreground">{user.email}</p>
+                <p className="mt-1 max-w-full truncate text-sm text-muted-foreground [overflow-wrap:anywhere]">
+                  {user.email}
+                </p>
                 <div className="mt-3 flex items-center justify-center gap-2 sm:justify-start">
                   <Badge variant="secondary" className="gap-1.5 px-2.5 py-1 text-xs">
                     {method.id === 'google.com' ? (

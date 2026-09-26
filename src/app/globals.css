@@ -74,7 +74,6 @@
       linear-gradient(hsl(var(--border) / 0.05) 1px, transparent 1px),
       linear-gradient(90deg, hsl(var(--border) / 0.05) 1px, transparent 1px);
     background-size: auto, 44px 44px, 44px 44px;
-    min-width: 320px;
   }
   ::selection {
     background: hsl(var(--primary) / 0.32);

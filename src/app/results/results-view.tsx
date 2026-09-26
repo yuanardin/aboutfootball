@@ -70,16 +70,16 @@ export function ResultsView({
   const isLive = meta.source === 'live';
 
   return (
-    <div className="page-shell py-10 sm:py-14">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <section className="max-w-2xl">
+    <div className="page-shell min-w-0 py-10 sm:py-14">
+      <header className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <section className="max-w-2xl min-w-0">
           <p className="eyebrow mb-3">Match centre</p>
-          <h1 className="text-page-title">Results, without the noise.</h1>
-          <p className="mt-4 text-base leading-7 text-muted-foreground">
+          <h1 className="text-page-title max-w-full [text-wrap:balance]">Results, without the noise.</h1>
+          <p className="mt-4 max-w-full text-base leading-7 text-muted-foreground [overflow-wrap:anywhere]">
             Completed matches grouped by matchday — navigate days and filter by competition.
           </p>
         </section>
-        <span className="chip w-fit shrink-0 sm:mb-1">
+        <span className="chip max-w-full w-fit shrink-0 break-words sm:mb-1">
           {isLive ? (
             <>
               <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-success" aria-hidden="true" />
