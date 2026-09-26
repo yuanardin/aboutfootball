@@ -13,56 +13,101 @@ import type {
   FootballDataMeta,
   FootballDataSeason,
   FootballDataTeam,
+  ResultsOverview,
   ResultsPayload,
+  StandingsOverview,
   StandingsPayload,
+  CompetitionResultsResult,
+  CompetitionStandingsResult,
 } from './types';
-import type { MatchResult, Standing } from '@/lib/types';
+import type { MatchResult, Standing, StandingGroup } from '@/lib/types';
+import {
+  COMPETITIONS,
+  DEFAULT_COMPETITION,
+  competitionTitle,
+  type CompetitionCode,
+} from './competitions';
 
-const RESULTS_CACHE_TTL_MS = 2 * 60 * 1000;
+const RESULTS_CACHE_TTL_MS = 5 * 60 * 1000;
 const STANDINGS_CACHE_TTL_MS = 10 * 60 * 1000;
 const TEAMS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
-const COMPETITION_CODE = 'PL';
 const NOT_CONFIGURED_MESSAGE = 'The football data provider is not configured on the server.';
+const RATE_LIMIT_MESSAGE = 'The live football data provider rate limit was reached. Please try again shortly.';
 
-const RESULTS_CACHE_KEY = 'football-data:pl:matches';
-const STANDINGS_CACHE_KEY = 'football-data:pl:standings';
-const TEAMS_CACHE_KEY = 'football-data:pl:teams';
+// Cache keys are per competition so switching leagues never serves another league's table.
+const resultsCacheKey = (code: CompetitionCode) => `football-data:${code}:matches`;
+const standingsCacheKey = (code: CompetitionCode) => `football-data:${code}:standings`;
+const teamsCacheKey = (code: CompetitionCode) => `football-data:${code}:teams`;
+
+// football-data.org's free tier allows roughly ten requests per minute, so a burst of
+// multi-competition requests is expected to hit 429. Two guards keep that honest and cheap:
+// a cooldown gate that stops burning quota while the provider is throttling us, and a
+// last-known-good copy so a throttled request can still show real (older) API data instead
+// of an empty page. Invented data is never substituted.
+const RATE_LIMIT_COOLDOWN_MS = 60_000;
+const rateLimitGate = new Map<string, number>();
+const lastGood = new Map<string, { value: unknown; storedAt: number }>();
+
+type WithMeta = { meta: FootballDataMeta };
+
+function rememberSuccess<T>(key: string, value: T): T {
+  lastGood.set(key, { value, storedAt: Date.now() });
+  return value;
+}
+
+function markStale<T extends WithMeta>(value: T, message: string): T {
+  return { ...value, meta: { ...value.meta, stale: true, error: message } };
+}
+
+function staleOrUnavailable<T extends WithMeta>(
+  key: string,
+  message: string,
+  build: (competition: CompetitionCode, message: string) => T,
+  competition: CompetitionCode
+): T {
+  const previous = lastGood.get(key);
+  if (previous) {
+    return markStale(previous.value as T, message);
+  }
+  return build(competition, message);
+}
 
 export function footballDataConfigured(): boolean {
   return Boolean(process.env.FOOTBALL_DATA_API_KEY);
 }
 
-function liveDataUnavailableMeta(message: string): FootballDataMeta {
+function unavailableMeta(message: string, code: CompetitionCode): FootballDataMeta {
   return {
     source: 'unavailable',
     provider: 'football-data.org',
-    competition: 'Premier League',
-    code: COMPETITION_CODE,
+    competition: competitionTitle(code),
+    code,
     season: 'Unavailable',
     matchday: null,
+    stage: null,
+    group: null,
     lastUpdated: new Date().toISOString(),
     error: message,
   };
 }
 
-function unavailableResultsPayload(message: string): ResultsPayload {
-  return {
-    matches: [],
-    meta: liveDataUnavailableMeta(message),
-  };
+function unavailableResultsPayload(message: string, code: CompetitionCode): ResultsPayload {
+  return { matches: [], meta: unavailableMeta(message, code) };
 }
 
-function unavailableStandingsPayload(message: string): StandingsPayload {
-  return {
-    standings: [],
-    meta: liveDataUnavailableMeta(message),
-  };
+function unavailableStandingsPayload(message: string, code: CompetitionCode): StandingsPayload {
+  return { standings: [], groups: [], meta: unavailableMeta(message, code) };
 }
 
 function logFailure(error: unknown, scope: string): void {
   if (error instanceof FootballDataProviderError) {
-    const label = error.kind === 'http' ? `HTTP ${error.status}` : error.kind.toUpperCase();
+    const label =
+      error.kind === 'http'
+        ? `HTTP ${error.status}`
+        : error.kind === 'rate-limit'
+          ? 'RATE LIMIT'
+          : error.kind.toUpperCase();
     console.error(`[football-data] ${scope} failed (${label}): ${error.message}`);
     return;
   }
@@ -74,12 +119,15 @@ export function footballDataErrorMessage(error: unknown, scope: string): string 
     if (error.kind === 'timeout') {
       return `The live ${scope} request timed out. Please try again shortly.`;
     }
+    if (error.kind === 'rate-limit') {
+      return `The live ${scope} provider rate limit was reached. Please try again shortly.`;
+    }
     if (error.kind === 'http') {
       if (error.status === 401 || error.status === 403) {
         return 'The football data provider rejected the configured API key. Please try again later.';
       }
       if (error.status === 429) {
-        return 'The football data provider rate limit was reached. Please try again shortly.';
+        return 'The live football data provider rate limit was reached. Please try again shortly.';
       }
       return `The live ${scope} provider returned an error (${error.status}). Please try again shortly.`;
     }
@@ -133,31 +181,144 @@ function parseForm(form?: string | null): Standing['form'] {
     .filter((result): result is 'W' | 'D' | 'L' => result === 'W' || result === 'D' || result === 'L');
 }
 
-export async function getResults(): Promise<ResultsPayload> {
+// Turns the provider's raw stage + group into a readable heading. Domestic leagues report
+// stage REGULAR_SEASON with a "Matchday" group, which is noise, so it is left unnamed.
+// Anything else (cup stages, knockout rounds, named groups) is surfaced as the API gave it.
+function groupLabel(stage: string, group: string | null, type: string): string {
+  const namedGroup = group && group.toLowerCase() !== 'matchday' ? group : null;
+  if (namedGroup) return namedGroup;
+
+  const namedStage = stage && stage !== 'REGULAR_SEASON' ? stage : null;
+  if (namedStage) return namedStage;
+
+  if (type === 'HOME') return 'Home table';
+  if (type === 'AWAY') return 'Away table';
+  return 'League table';
+}
+
+function buildGroups(
+  blocks: Array<{
+    stage: string;
+    type: 'TOTAL' | 'HOME' | 'AWAY';
+    group: string | null;
+    table: Array<{
+      position: number;
+      team: { name: string; shortName?: string | null; crest?: string | null };
+      playedGames: number;
+      form?: string | null;
+      won: number;
+      draw: number;
+      lost: number;
+      points: number;
+      goalDifference: number;
+    }>;
+  }>
+): StandingGroup[] {
+  return blocks
+    .filter((block) => block.table.length > 0)
+    .map((block, index) => ({
+      key: `${block.stage}-${block.group ?? 'none'}-${block.type}-${index}`,
+      label: groupLabel(block.stage, block.group, block.type),
+      stage: block.stage,
+      type: block.type,
+      group: block.group,
+      standings: block.table
+        .map<Standing>((row) => ({
+          rank: row.position,
+          team: mapTeam(row.team),
+          played: row.playedGames,
+          win: row.won,
+          draw: row.draw,
+          loss: row.lost,
+          gd: row.goalDifference,
+          points: row.points,
+          form: parseForm(row.form),
+        }))
+        .sort((a, b) => a.rank - b.rank),
+    }));
+}
+
+function mapMatch(match: FootballDataMatch): MatchResult {
+  return {
+    id: `fd-${match.id}`,
+    league: match.competition.name,
+    homeTeam: {
+      ...mapTeam(match.homeTeam),
+      score: match.score?.fullTime.home ?? 0,
+    },
+    awayTeam: {
+      ...mapTeam(match.awayTeam),
+      score: match.score?.fullTime.away ?? 0,
+    },
+    matchDate: toDateKey(new Date(match.utcDate)),
+    status: mapMatchStatus(match.status),
+    competitionCode: match.competition.code,
+    competitionName: match.competition.name,
+    matchday: match.matchday ?? null,
+    stage: match.stage,
+    group: match.group ?? null,
+    kickoff: match.utcDate,
+  };
+}
+
+// Wraps one live provider read with caching, a rate-limit cooldown and a last-known-good
+// fallback. `scope` is only used for log/error wording so one implementation serves every
+// competition without duplicating logic per league.
+async function loadLive<T extends WithMeta>(options: {
+  key: string;
+  ttlMs: number;
+  scope: string;
+  competition: CompetitionCode;
+  load: () => Promise<{ meta: FootballDataMeta } & T>;
+  build: (competition: CompetitionCode, message: string) => T;
+}): Promise<T> {
+  const { key, ttlMs, scope, competition, load, build } = options;
+
   if (!footballDataConfigured()) {
-    return unavailableResultsPayload(NOT_CONFIGURED_MESSAGE);
+    return build(competition, NOT_CONFIGURED_MESSAGE);
+  }
+
+  const resumeAt = rateLimitGate.get(key) ?? 0;
+  if (Date.now() < resumeAt) {
+    return staleOrUnavailable(key, RATE_LIMIT_MESSAGE, build, competition);
   }
 
   try {
-    return await cachedWithTtl(RESULTS_CACHE_KEY, RESULTS_CACHE_TTL_MS, async () => {
-      const response = await fetchFinishedMatches(COMPETITION_CODE);
+    const value = (await cachedWithTtl(key, ttlMs, load)) as T;
+    rateLimitGate.delete(key);
+    if (value.meta.source === 'live') {
+      return rememberSuccess(key, value);
+    }
+    return value;
+  } catch (error) {
+    logFailure(error, scope);
+    if (error instanceof FootballDataProviderError && error.kind === 'rate-limit') {
+      rateLimitGate.set(key, Date.now() + RATE_LIMIT_COOLDOWN_MS);
+      return staleOrUnavailable(key, RATE_LIMIT_MESSAGE, build, competition);
+    }
+    return staleOrUnavailable(
+      key,
+      footballDataErrorMessage(error, scope),
+      build,
+      competition
+    );
+  }
+}
 
-      const matches: MatchResult[] = [...response.matches]
+export async function getResults(
+  competitionCode: CompetitionCode = DEFAULT_COMPETITION
+): Promise<ResultsPayload> {
+  return loadLive<ResultsPayload>({
+    key: resultsCacheKey(competitionCode),
+    ttlMs: RESULTS_CACHE_TTL_MS,
+    scope: 'results',
+    competition: competitionCode,
+    load: async () => {
+      const response = await fetchFinishedMatches(competitionCode);
+
+      const matches = [...response.matches]
         .sort((a, b) => Date.parse(b.utcDate) - Date.parse(a.utcDate))
-        .map((match) => ({
-          id: `fd-${match.id}`,
-          league: match.competition.name,
-          homeTeam: {
-            ...mapTeam(match.homeTeam),
-            score: match.score?.fullTime.home ?? 0,
-          },
-          awayTeam: {
-            ...mapTeam(match.awayTeam),
-            score: match.score?.fullTime.away ?? 0,
-          },
-          matchDate: toDateKey(new Date(match.utcDate)),
-          status: mapMatchStatus(match.status),
-        }))
+        .map(mapMatch)
         .filter((match) => match.status === 'FT');
 
       const referenceSeason = response.matches[0]?.season;
@@ -169,39 +330,33 @@ export async function getResults(): Promise<ResultsPayload> {
         code: response.competition.code,
         season: seasonLabel(referenceSeason),
         matchday: referenceSeason?.currentMatchday ?? null,
+        stage: response.matches[0]?.stage ?? null,
+        group: response.matches[0]?.group ?? null,
         lastUpdated: new Date().toISOString(),
       };
 
       return { matches, meta };
-    });
-  } catch (error) {
-    logFailure(error, 'results');
-    return unavailableResultsPayload(footballDataErrorMessage(error, 'results'));
-  }
+    },
+    build: (competition, message) => unavailableResultsPayload(message, competition),
+  });
 }
 
-export async function getStandings(): Promise<StandingsPayload> {
-  if (!footballDataConfigured()) {
-    return unavailableStandingsPayload(NOT_CONFIGURED_MESSAGE);
-  }
+export async function getStandings(
+  competitionCode: CompetitionCode = DEFAULT_COMPETITION
+): Promise<StandingsPayload> {
+  return loadLive<StandingsPayload>({
+    key: standingsCacheKey(competitionCode),
+    ttlMs: STANDINGS_CACHE_TTL_MS,
+    scope: 'standings',
+    competition: competitionCode,
+    load: async () => {
+      const response = await fetchStandings(competitionCode);
 
-  try {
-    return await cachedWithTtl(STANDINGS_CACHE_KEY, STANDINGS_CACHE_TTL_MS, async () => {
-      const response = await fetchStandings(COMPETITION_CODE);
-
-      const table = response.standings.find((entry) => entry.type === 'TOTAL');
-
-      const standings: Standing[] = (table?.table ?? []).map((row) => ({
-        rank: row.position,
-        team: mapTeam(row.team),
-        played: row.playedGames,
-        win: row.won,
-        draw: row.draw,
-        loss: row.lost,
-        gd: row.goalDifference,
-        points: row.points,
-        form: parseForm(row.form),
-      }));
+      // Prefer the overall table. Cup competitions can answer with several blocks, and
+      // each one is preserved with its own stage/group label instead of being merged.
+      const totalBlocks = response.standings.filter((entry) => entry.type === 'TOTAL');
+      const blocks = totalBlocks.length ? totalBlocks : response.standings;
+      const groups = buildGroups(blocks);
 
       const meta: FootballDataMeta = {
         source: 'live',
@@ -210,15 +365,106 @@ export async function getStandings(): Promise<StandingsPayload> {
         code: response.competition.code,
         season: seasonLabel(response.season),
         matchday: response.season.currentMatchday ?? null,
+        stage: blocks[0]?.stage ?? null,
+        group: blocks[0]?.group ?? null,
         lastUpdated: new Date().toISOString(),
       };
 
-      return { standings, meta };
+      return { standings: groups[0]?.standings ?? [], groups, meta };
+    },
+    build: (competition, message) => unavailableStandingsPayload(message, competition),
+  });
+}
+
+// Loads every registered competition. Each competition is cached independently, so a
+// failure in one league never affects the others and no placeholder data is substituted.
+export async function getAllStandings(): Promise<StandingsOverview> {
+  const entries = await Promise.all(
+    COMPETITIONS.map(async (competition): Promise<CompetitionStandingsResult> => ({
+      code: competition.code,
+      label: competition.label,
+      payload: await getStandings(competition.code),
+    }))
+  );
+
+  const live = entries.filter((entry) => entry.payload.meta.source === 'live');
+  const failed = entries
+    .filter((entry) => entry.payload.meta.source !== 'live')
+    .map((entry) => entry.code);
+  const stale = entries
+    .filter((entry) => entry.payload.meta.source === 'live' && entry.payload.meta.stale)
+    .map((entry) => entry.code);
+
+  const groups = live.flatMap((entry) => entry.payload.groups);
+  const lastUpdated = entries
+    .map((entry) => entry.payload.meta.lastUpdated)
+    .sort()
+    .at(-1);
+
+  const meta: FootballDataMeta = {
+    source: live.length ? 'live' : 'unavailable',
+    provider: 'football-data.org',
+    competition: 'All competitions',
+    code: 'ALL',
+    season: live[0]?.payload.meta.season ?? 'Unavailable',
+    matchday: live[0]?.payload.meta.matchday ?? null,
+    stage: null,
+    group: null,
+    lastUpdated: lastUpdated ?? new Date().toISOString(),
+    error: live.length
+      ? null
+      : entries[0]?.payload.meta.error ?? 'No live standings could be loaded right now.',
+  };
+
+  return { groups, entries, meta, failed, stale };
+}
+
+export async function getAllResults(): Promise<ResultsOverview> {
+  const entries = await Promise.all(
+    COMPETITIONS.map(async (competition): Promise<CompetitionResultsResult> => ({
+      code: competition.code,
+      label: competition.label,
+      payload: await getResults(competition.code),
+    }))
+  );
+
+  const live = entries.filter((entry) => entry.payload.meta.source === 'live');
+  const failed = entries
+    .filter((entry) => entry.payload.meta.source !== 'live')
+    .map((entry) => entry.code);
+  const stale = entries
+    .filter((entry) => entry.payload.meta.source === 'live' && entry.payload.meta.stale)
+    .map((entry) => entry.code);
+
+  const matches = live
+    .flatMap((entry) => entry.payload.matches)
+    .sort((a, b) => {
+      const byKickoff = Date.parse(b.kickoff ?? '') - Date.parse(a.kickoff ?? '');
+      if (!Number.isNaN(byKickoff) && byKickoff !== 0) return byKickoff;
+      return Date.parse(b.matchDate) - Date.parse(a.matchDate);
     });
-  } catch (error) {
-    logFailure(error, 'standings');
-    return unavailableStandingsPayload(footballDataErrorMessage(error, 'standings'));
-  }
+
+  const lastUpdated = entries
+    .map((entry) => entry.payload.meta.lastUpdated)
+    .sort()
+    .at(-1);
+
+  const meta: FootballDataMeta = {
+    source: live.length ? 'live' : 'unavailable',
+    provider: 'football-data.org',
+    competition: 'All competitions',
+    code: 'ALL',
+    season: live[0]?.payload.meta.season ?? 'Unavailable',
+    matchday: live[0]?.payload.meta.matchday ?? null,
+    stage: null,
+    group: null,
+    lastUpdated: lastUpdated ?? new Date().toISOString(),
+    error: live.length
+      ? null
+      : entries[0]?.payload.meta.error ?? 'No live results could be loaded right now.',
+  };
+
+  return { matches, entries, meta, failed, stale };
 }
 
 export type CompetitionTeamsResult = {
@@ -226,7 +472,9 @@ export type CompetitionTeamsResult = {
   error: string | null;
 };
 
-export async function getCompetitionTeams(): Promise<CompetitionTeamsResult> {
+export async function getCompetitionTeams(
+  competitionCode: CompetitionCode = DEFAULT_COMPETITION
+): Promise<CompetitionTeamsResult> {
   if (!footballDataConfigured()) {
     return {
       teams: [],
@@ -234,14 +482,32 @@ export async function getCompetitionTeams(): Promise<CompetitionTeamsResult> {
     };
   }
 
+  const key = teamsCacheKey(competitionCode);
+
+  if ((rateLimitGate.get(key) ?? 0) > Date.now()) {
+    const previous = lastGood.get(key);
+    if (previous) {
+      return { teams: previous.value as FootballDataTeam[], error: null };
+    }
+    return { teams: [], error: RATE_LIMIT_MESSAGE };
+  }
+
   try {
-    const teams = await cachedWithTtl(TEAMS_CACHE_KEY, TEAMS_CACHE_TTL_MS, async () => {
-      const response = await fetchCompetitionTeams(COMPETITION_CODE);
+    const teams = await cachedWithTtl(key, TEAMS_CACHE_TTL_MS, async () => {
+      const response = await fetchCompetitionTeams(competitionCode);
       return [...response.teams].sort((a, b) => a.name.localeCompare(b.name));
     });
+    rateLimitGate.delete(key);
     return { teams, error: null };
   } catch (error) {
-    logFailure(error, 'teams');
+    logFailure(error, `teams ${competitionCode}`);
+    if (error instanceof FootballDataProviderError && error.kind === 'rate-limit') {
+      rateLimitGate.set(key, Date.now() + RATE_LIMIT_COOLDOWN_MS);
+    }
+    const previous = lastGood.get(key);
+    if (previous) {
+      return { teams: previous.value as FootballDataTeam[], error: null };
+    }
     return {
       teams: [],
       error: 'Unable to load the club list right now. Please try again later.',
@@ -252,10 +518,11 @@ export async function getCompetitionTeams(): Promise<CompetitionTeamsResult> {
 export type TeamMatchDto = {
   id: number;
   competition: string;
-  competitionCode: string;
+  competitionCode: CompetitionCode;
   status: FootballDataMatchStatus;
   utcDate: string;
   matchday: number | null;
+  stage: string;
   homeTeam: { id: number; name: string; crest: string | null; score: number | null };
   awayTeam: { id: number; name: string; crest: string | null; score: number | null };
 };
@@ -283,10 +550,11 @@ function toTeamMatchDto(match: FootballDataMatch): TeamMatchDto {
   return {
     id: match.id,
     competition: match.competition.name,
-    competitionCode: match.competition.code,
+    competitionCode: match.competition.code as CompetitionCode,
     status: match.status,
     utcDate: match.utcDate,
     matchday: match.matchday ?? null,
+    stage: match.stage,
     homeTeam: {
       id: match.homeTeam.id,
       name: match.homeTeam.shortName ?? match.homeTeam.name,

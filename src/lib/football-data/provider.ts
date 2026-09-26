@@ -5,11 +5,17 @@ import type {
   FootballDataTeamMatchesResponse,
   FootballDataTeamsResponse,
 } from './types';
+import type { CompetitionCode } from './competitions';
 
 const FOOTBALL_DATA_BASE_URL = 'https://api.football-data.org/v4';
 const REQUEST_TIMEOUT_MS = 15_000;
+// The free tier allows a small number of requests per minute. When several competitions
+// are requested at once a 429 is expected, so a 429 is retried with a short backoff
+// instead of being surfaced as a permanent error.
+const RATE_LIMIT_RETRY_DELAYS_MS = [600, 1_500, 3_000];
+const RATE_LIMIT_MAX_ATTEMPTS = RATE_LIMIT_RETRY_DELAYS_MS.length + 1;
 
-export type FootballDataFailureKind = 'config' | 'http' | 'network' | 'timeout';
+export type FootballDataFailureKind = 'config' | 'http' | 'network' | 'timeout' | 'rate-limit';
 
 export class FootballDataProviderError extends Error {
   constructor(
@@ -34,7 +40,11 @@ function apiToken(): string {
   return token;
 }
 
-async function apiRequest<T>(path: string, query: Record<string, string> = {}): Promise<T> {
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function attemptRequest<T>(path: string, query: Record<string, string>): Promise<T> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
@@ -52,6 +62,13 @@ async function apiRequest<T>(path: string, query: Record<string, string> = {}): 
     });
 
     if (!response.ok) {
+      if (response.status === 429) {
+        throw new FootballDataProviderError(
+          response.status,
+          'rate-limit',
+          `football-data.org rate limit reached for ${path}`
+        );
+      }
       throw new FootballDataProviderError(
         response.status,
         'http',
@@ -81,17 +98,35 @@ async function apiRequest<T>(path: string, query: Record<string, string> = {}): 
   }
 }
 
-export function fetchFinishedMatches(competitionCode: string): Promise<FootballDataMatchesResponse> {
+async function apiRequest<T>(path: string, query: Record<string, string> = {}): Promise<T> {
+  for (let index = 0; index < RATE_LIMIT_MAX_ATTEMPTS; index += 1) {
+    try {
+      return await attemptRequest<T>(path, query);
+    } catch (error) {
+      const isRateLimit =
+        error instanceof FootballDataProviderError && error.kind === 'rate-limit';
+      if (!isRateLimit || index === RATE_LIMIT_MAX_ATTEMPTS - 1) {
+        throw error;
+      }
+      await sleep(RATE_LIMIT_RETRY_DELAYS_MS[index]);
+    }
+  }
+
+  // Unreachable: the loop either returns or throws.
+  throw new FootballDataProviderError(429, 'rate-limit', `football-data.org rate limit for ${path}`);
+}
+
+export function fetchFinishedMatches(competitionCode: CompetitionCode): Promise<FootballDataMatchesResponse> {
   return apiRequest<FootballDataMatchesResponse>(`/competitions/${competitionCode}/matches`, {
     status: 'FINISHED',
   });
 }
 
-export function fetchStandings(competitionCode: string): Promise<FootballDataStandingsResponse> {
+export function fetchStandings(competitionCode: CompetitionCode): Promise<FootballDataStandingsResponse> {
   return apiRequest<FootballDataStandingsResponse>(`/competitions/${competitionCode}/standings`);
 }
 
-export function fetchCompetitionTeams(competitionCode: string): Promise<FootballDataTeamsResponse> {
+export function fetchCompetitionTeams(competitionCode: CompetitionCode): Promise<FootballDataTeamsResponse> {
   return apiRequest<FootballDataTeamsResponse>(`/competitions/${competitionCode}/teams`);
 }
 

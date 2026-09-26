@@ -4,6 +4,11 @@ import { summarizeFootballNews } from '@/ai/flows/summarize-football-news';
 import { getNewsForTeam, type TeamNewsResult, type NewsRankingPreferences } from '@/lib/news/service';
 import { getCompetitionTeams, getStandings, getTeamMatches } from '@/lib/football-data/service';
 import type { TeamMatchesResult } from '@/lib/football-data/service';
+import {
+  DEFAULT_COMPETITION,
+  isCompetitionCode,
+  type CompetitionCode,
+} from '@/lib/football-data/competitions';
 import type { FootballDataMeta, FootballDataTeam } from '@/lib/football-data/types';
 import type { Standing } from '@/lib/types';
 import { z } from 'zod';
@@ -34,8 +39,11 @@ export type ClubListResult = {
   error: string | null;
 };
 
-export async function getClubList(): Promise<ClubListResult> {
-  const result = await getCompetitionTeams();
+export async function getClubList(competitionCode?: string): Promise<ClubListResult> {
+  const code: CompetitionCode = isCompetitionCode(competitionCode)
+    ? competitionCode
+    : DEFAULT_COMPETITION;
+  const result = await getCompetitionTeams(code);
 
   if (result.error) {
     return { teams: [], error: result.error };
@@ -66,8 +74,10 @@ export type StandingsActionResult = {
   error: string | null;
 };
 
-export async function getStandingsAction(): Promise<StandingsActionResult> {
-  const payload = await getStandings();
+export async function getStandingsAction(
+  competitionCode: CompetitionCode = DEFAULT_COMPETITION
+): Promise<StandingsActionResult> {
+  const payload = await getStandings(competitionCode);
 
   if (payload.meta.source !== 'live') {
     return {

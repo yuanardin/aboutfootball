@@ -5,6 +5,14 @@ import type { Standing } from '@/lib/types';
 import { getImageById, cn } from '@/lib/utils';
 
 export function FormLetters({ form }: { form: Standing['form'] }) {
+  if (!form.length) {
+    return (
+      <p className="text-right text-[11px] text-muted-foreground" title="Not reported by the provider">
+        —
+      </p>
+    );
+  }
+
   return (
     <div
       className="flex justify-end gap-1"
@@ -32,27 +40,49 @@ type StandingsTableProps = {
   compact?: boolean;
   title?: string;
   subtitle?: string;
+  /** Stage/group name exactly as the provider reported it (cup competitions). */
+  groupLabel?: string | null;
 };
 
-export function StandingsTable({ standings, compact = false, title = 'Premier League', subtitle }: StandingsTableProps) {
+export function StandingsTable({
+  standings,
+  compact = false,
+  title = 'League table',
+  subtitle,
+  groupLabel,
+}: StandingsTableProps) {
   const rows = compact ? standings.slice(0, 5) : standings;
   const leadingRows = rows.filter((row) => row.points === Math.max(...rows.map((r) => r.points)));
+  const scope = groupLabel ? `${title} — ${groupLabel}` : title;
+
+  if (!standings.length) {
+    return (
+      <div className="card-surface px-5 py-10 text-center">
+        <h2 className="font-headline text-sm font-bold">{title}</h2>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          The provider returned no table for this competition yet.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="card-surface overflow-hidden">
       <div className="flex items-center gap-2.5 border-b border-border bg-secondary/30 px-4 py-3">
-        <span className="grid h-7 w-7 place-items-center rounded-md bg-primary/15 text-primary">
+        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-primary/15 text-primary">
           <Trophy className="h-4 w-4" aria-hidden="true" />
         </span>
-        <div>
-          <h2 className="font-headline text-sm font-bold">{title}</h2>
-          <p className="text-[11px] text-muted-foreground">{subtitle ?? 'Live table unavailable'}</p>
+        <div className="min-w-0">
+          <h2 className="truncate font-headline text-sm font-bold">{title}</h2>
+          <p className="truncate text-[11px] text-muted-foreground">
+            {groupLabel ? `${groupLabel} · ${subtitle ?? 'Live table unavailable'}` : subtitle ?? 'Live table unavailable'}
+          </p>
         </div>
       </div>
       <div className="overflow-x-auto">
         <table className={cn('w-full text-sm', compact ? 'min-w-[400px]' : 'min-w-[620px]')}>
           <caption className="sr-only">
-            {title} standings — position, points, goal difference and recent form.
+            {scope} standings — position, points, goal difference and recent form.
           </caption>
           <thead>
             <tr className="border-b border-border text-left text-[11px] font-semibold uppercase tracking-[0.11em] text-muted-foreground">
