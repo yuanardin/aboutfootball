@@ -52,7 +52,12 @@ export function StandingsTable({
   groupLabel,
 }: StandingsTableProps) {
   const rows = compact ? standings.slice(0, 5) : standings;
-  const leadingRows = rows.filter((row) => row.points === Math.max(...rows.map((r) => r.points)));
+  // Only mark a leader when the top of the table is actually unshared. Early in a season —
+  // and across a 36-team Champions League league phase — many clubs sit level on the same
+  // points, and highlighting all of them as "leader" would be misleading.
+  const topPoints = rows.length ? Math.max(...rows.map((row) => row.points)) : 0;
+  const topCount = rows.filter((row) => row.points === topPoints).length;
+  const leadingRows = topCount === 1 ? [rows.find((row) => row.points === topPoints)!] : [];
   const scope = groupLabel ? `${title} — ${groupLabel}` : title;
 
   if (!standings.length) {
@@ -98,13 +103,18 @@ export function StandingsTable({
             </tr>
           </thead>
           <tbody>
-            {rows.map((standing) => {
+            {rows.map((standing, index) => {
               const logo = getImageById(standing.team.logoId);
               const hasLogo = Boolean(standing.team.crest || logo);
               const isLeader = leadingRows.includes(standing);
+              // Tied clubs share a position, so `rank` is not unique. Key on the provider's
+              // club id and fall back to a position+name composite, keeping every row key
+              // unique so React never reuses the wrong row when the table re-renders.
+              const rowKey =
+                standing.team.id ?? `${standing.rank}-${standing.team.name}-${index}`;
               return (
                 <tr
-                  key={standing.rank}
+                  key={rowKey}
                   className={cn(
                     'border-b border-border/70 last:border-0 transition hover:bg-secondary/30',
                     isLeader && 'bg-primary/[0.06]'

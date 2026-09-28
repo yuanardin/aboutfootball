@@ -15,8 +15,8 @@ export type NewsArticle = {
 export type MatchResult = {
   id: string;
   league: string;
-  homeTeam: { name: string; score: number; logoId?: string; crest?: string };
-  awayTeam: { name: string; score: number; logoId?: string; crest?: string };
+  homeTeam: { id?: number; name: string; score: number; logoId?: string; crest?: string };
+  awayTeam: { id?: number; name: string; score: number; logoId?: string; crest?: string };
   matchDate: string;
   status: 'FT' | 'LIVE' | 'HT';
   // Straight from the provider response — never derived or invented. Used to label the
@@ -31,7 +31,10 @@ export type MatchResult = {
 
 export type Standing = {
   rank: number;
-  team: { name: string; logoId?: string; crest?: string };
+  // `id` is the provider's own club id. Rows must be keyed by it rather than by `rank`,
+  // because tied clubs legitimately share a position (9 of 36 Champions League league-phase
+  // positions are shared), which would otherwise produce duplicate React keys.
+  team: { id?: number; name: string; logoId?: string; crest?: string };
   played: number;
   win: number;
   draw: number;

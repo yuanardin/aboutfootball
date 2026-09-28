@@ -166,8 +166,9 @@ function mapMatchStatus(status: string): MatchResult['status'] {
   }
 }
 
-function mapTeam(team: { name: string; shortName?: string | null; crest?: string | null }) {
+function mapTeam(team: { id?: number; name: string; shortName?: string | null; crest?: string | null }) {
   return {
+    ...(typeof team.id === 'number' ? { id: team.id } : {}),
     name: team.shortName ?? team.name,
     crest: team.crest ?? undefined,
   };
@@ -203,7 +204,7 @@ function buildGroups(
     group: string | null;
     table: Array<{
       position: number;
-      team: { name: string; shortName?: string | null; crest?: string | null };
+      team: { id?: number; name: string; shortName?: string | null; crest?: string | null };
       playedGames: number;
       form?: string | null;
       won: number;
