@@ -1,18 +1,22 @@
-import 'server-only';
+﻿import 'server-only';
 import { cachedWithTtl } from './cache';
 import {
   FootballDataProviderError,
   fetchCompetitionTeams,
   fetchFinishedMatches,
+  fetchMatchDetail,
   fetchStandings,
   fetchTeamMatches,
 } from './provider';
 import type {
   FootballDataMatch,
+  FootballDataMatchDetailResponse,
   FootballDataMatchStatus,
   FootballDataMeta,
   FootballDataSeason,
   FootballDataTeam,
+  MatchDetail,
+  MatchDetailResult,
   ResultsOverview,
   ResultsPayload,
   StandingsOverview,
@@ -20,6 +24,8 @@ import type {
   CompetitionResultsResult,
   CompetitionStandingsResult,
 } from './types';
+import { describeMatchStatus } from './match-links';
+export { matchDetailPath, parseMatchRouteId, toMatchDetailPath } from './match-links';
 import type { MatchResult, Standing, StandingGroup } from '@/lib/types';
 import {
   COMPETITIONS,
@@ -165,6 +171,7 @@ function mapMatchStatus(status: string): MatchResult['status'] {
       return 'FT';
   }
 }
+
 
 function mapTeam(team: { id?: number; name: string; shortName?: string | null; crest?: string | null }) {
   return {
@@ -616,7 +623,7 @@ async function loadTeamMatchesFromApi(teamId: number): Promise<TeamMatchesResult
     if (existing) {
       return {
         ...existing.value,
-        error: 'Live updates paused — showing last known match data.',
+        error: 'Live updates paused â€” showing last known match data.',
         stale: true,
       };
     }
@@ -624,7 +631,7 @@ async function loadTeamMatchesFromApi(teamId: number): Promise<TeamMatchesResult
       upcoming: null,
       previous: null,
       live: null,
-      error: 'Unable to load this team’s matches right now. Please try again later.',
+      error: 'Unable to load this teamâ€™s matches right now. Please try again later.',
       stale: false,
     };
   }
@@ -660,5 +667,160 @@ export async function getTeamMatches(teamId: number): Promise<TeamMatchesResult>
     return await pending;
   } finally {
     teamMatchesInFlight.delete(key);
+  }
+}
+
+const MATCH_DETAIL_TTL_MS = 60_000;
+
+function detailTeamName(team: FootballDataTeam): string {
+  return team.shortName ?? team.name;
+}
+
+function mapMatchDetailGoal(
+  goal: NonNullable<FootballDataMatchDetailResponse['goals']>[number]
+): MatchDetail['goals'][number] {
+  return {
+    minute: typeof goal.minute === 'number' ? goal.minute : null,
+    injuryTime: typeof goal.injuryTime === 'number' ? goal.injuryTime : null,
+    type: typeof goal.type === 'string' ? goal.type : null,
+    teamId: typeof goal.team?.id === 'number' ? goal.team.id : null,
+    teamName:
+      typeof goal.team?.name === 'string' && goal.team.name ? goal.team.name : null,
+    scorer:
+      typeof goal.scorer?.name === 'string' && goal.scorer.name ? goal.scorer.name : null,
+    assist:
+      typeof goal.assist?.name === 'string' && goal.assist.name ? goal.assist.name : null,
+  };
+}
+
+// Normalizes one GET /v4/matches/{id} response. Only fields the provider
+// actually returned are kept â€” venue, goals and referees stay null/empty when
+// the API omits them instead of being substituted.
+function mapMatchDetail(response: FootballDataMatchDetailResponse): MatchDetail {
+  const candidate =
+    response && typeof response === 'object' && 'match' in response
+      ? ((response as Record<string, unknown>).match as FootballDataMatchDetailResponse)
+      : response;
+
+  if (!candidate || typeof candidate !== 'object' || typeof candidate.id !== 'number') {
+    throw new FootballDataProviderError(
+      null,
+      'network',
+      'football-data.org returned an unexpected match shape'
+    );
+  }
+
+  const described = describeMatchStatus(candidate.status);
+  const venue =
+    typeof candidate.venue === 'string' && candidate.venue.trim()
+      ? candidate.venue.trim()
+      : null;
+
+  return {
+    id: candidate.id,
+    status: candidate.status,
+    badge: described.badge,
+    statusLabel: described.label,
+    isLive: described.isLive,
+    kickoff: candidate.utcDate,
+    competition: candidate.competition?.name ?? 'Unknown competition',
+    competitionCode:
+      typeof candidate.competition?.code === 'string' ? candidate.competition.code : null,
+    competitionEmblem:
+      typeof candidate.competition?.emblem === 'string' ? candidate.competition.emblem : null,
+    season: seasonLabel(candidate.season),
+    matchday:
+      typeof candidate.matchday === 'number' && Number.isInteger(candidate.matchday)
+        ? candidate.matchday
+        : null,
+    stage: typeof candidate.stage === 'string' && candidate.stage ? candidate.stage : null,
+    group: typeof candidate.group === 'string' && candidate.group ? candidate.group : null,
+    lastUpdated:
+      typeof candidate.lastUpdated === 'string' ? candidate.lastUpdated : new Date().toISOString(),
+    venue,
+    homeTeam: {
+      id: typeof candidate.homeTeam?.id === 'number' ? candidate.homeTeam.id : null,
+      name: candidate.homeTeam?.name ?? 'Home team',
+      shortName: candidate.homeTeam ? detailTeamName(candidate.homeTeam) : 'Home',
+      crest:
+        typeof candidate.homeTeam?.crest === 'string' && candidate.homeTeam.crest
+          ? candidate.homeTeam.crest
+          : null,
+    },
+    awayTeam: {
+      id: typeof candidate.awayTeam?.id === 'number' ? candidate.awayTeam.id : null,
+      name: candidate.awayTeam?.name ?? 'Away team',
+      shortName: candidate.awayTeam ? detailTeamName(candidate.awayTeam) : 'Away',
+      crest:
+        typeof candidate.awayTeam?.crest === 'string' && candidate.awayTeam.crest
+          ? candidate.awayTeam.crest
+          : null,
+    },
+    score: {
+      home: candidate.score?.fullTime?.home ?? null,
+      away: candidate.score?.fullTime?.away ?? null,
+      halfHome: candidate.score?.halfTime?.home ?? null,
+      halfAway: candidate.score?.halfTime?.away ?? null,
+      winner: typeof candidate.score?.winner === 'string' ? candidate.score.winner : null,
+    },
+    goals: Array.isArray(candidate.goals)
+      ? candidate.goals.slice(0, 60).map(mapMatchDetailGoal)
+      : [],
+    referees: Array.isArray(candidate.referees)
+      ? candidate.referees
+          .filter(
+            (referee): referee is NonNullable<FootballDataMatchDetailResponse['referees']>[number] =>
+              Boolean(referee) && typeof referee?.name === 'string' && referee.name.trim().length > 0
+          )
+          .slice(0, 10)
+          .map((referee) => ({
+            name: (referee.name as string).trim(),
+            role:
+              typeof referee.type === 'string' && referee.type ? referee.type : null,
+            nationality:
+              typeof referee.nationality === 'string' && referee.nationality
+                ? referee.nationality
+                : null,
+          }))
+      : [],
+  };
+}
+
+// Single-match read for /matches/[id]. Cached for 60 seconds (the same
+// in-memory cache family as results/standings) so a LIVE page can refresh
+// without hammering the free-tier quota. A provider 404 becomes `notFound`;
+// every other failure becomes a plain error the page renders as
+// "Live match data unavailable" â€” dummy data is never substituted.
+export async function getMatchDetail(matchId: number): Promise<MatchDetailResult> {
+  if (!Number.isInteger(matchId) || matchId <= 0 || matchId > 10_000_000) {
+    return { match: null, error: 'Match not found.', notFound: true };
+  }
+
+  if (!footballDataConfigured()) {
+    return { match: null, error: NOT_CONFIGURED_MESSAGE, notFound: false };
+  }
+
+  const key = `football-data:match:${matchId}`;
+
+  try {
+    const match = await cachedWithTtl(key, MATCH_DETAIL_TTL_MS, async () => {
+      const response = await fetchMatchDetail(matchId);
+      return mapMatchDetail(response);
+    });
+    return { match, error: null, notFound: false };
+  } catch (error) {
+    logFailure(error, `match ${matchId}`);
+    if (
+      error instanceof FootballDataProviderError &&
+      error.kind === 'http' &&
+      error.status === 404
+    ) {
+      return { match: null, error: 'Match not found.', notFound: true };
+    }
+    return {
+      match: null,
+      error: footballDataErrorMessage(error, 'match data'),
+      notFound: false,
+    };
   }
 }

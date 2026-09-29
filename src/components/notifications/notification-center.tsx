@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Bell, CheckCheck, Flag, RefreshCw, Settings, Tv } from 'lucide-react';
 import Link from 'next/link';
 import { getTeamMatchesAction } from '@/app/actions';
+import { matchDetailPath } from '@/lib/football-data/match-links';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -266,9 +267,10 @@ export function NotificationCenter() {
                     const unreadItem = item.readAt === null;
                     return (
                       <li key={item.id}>
-                        <button
-                          type="button"
+                        <Link
+                          href={matchDetailPath(item.matchId)}
                           onClick={() => handleItemClick(item)}
+                          aria-label={`${item.title} — view match details`}
                           className={cn(
                             'flex w-full items-start gap-3 rounded-lg px-3 py-3 text-left transition hover:bg-secondary/70',
                             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
@@ -304,7 +306,7 @@ export function NotificationCenter() {
                             </span>
                           </span>
                           {unreadItem && <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary" aria-hidden="true" />}
-                        </button>
+                        </Link>
                       </li>
                     );
                   })}

@@ -1,5 +1,7 @@
 import Image from 'next/image';
+import Link from 'next/link';
 import type { MatchResult } from '@/lib/types';
+import { toMatchDetailPath } from '@/lib/football-data/match-links';
 import { cn, formatMatchDate, getImageById } from '@/lib/utils';
 
 type MatchStatus = MatchResult['status'];
@@ -89,9 +91,10 @@ export function MatchCard({ match, small = false }: { match: MatchResult; small?
   const away = getImageById(match.awayTeam.logoId);
   const showHomeLogo = Boolean(match.homeTeam.crest || home);
   const showAwayLogo = Boolean(match.awayTeam.crest || away);
+  const detailHref = toMatchDetailPath(match.id);
 
-  return (
-    <article className="rounded-lg border border-border/80 bg-card/60 px-4 py-3 transition hover:border-primary/40 sm:px-4">
+  const body = (
+    <>
       <div className="mb-2.5 flex items-center justify-between gap-3">
         <span className="flex min-w-0 items-center gap-2">
           <span className="truncate text-xs font-semibold uppercase tracking-[0.12em] text-foreground">
@@ -134,6 +137,28 @@ export function MatchCard({ match, small = false }: { match: MatchResult; small?
           </span>
         </div>
       </div>
-    </article>
+    </>
+  );
+
+  // Every card with a real provider id links to its live detail page. Cards
+  // without a parseable id render as plain content so no broken link exists.
+  if (!detailHref) {
+    return (
+      <article className="rounded-lg border border-border/80 bg-card/60 px-4 py-3 sm:px-4">
+        {body}
+      </article>
+    );
+  }
+
+  return (
+    <Link
+      href={detailHref}
+      aria-label={`View ${match.homeTeam.name} vs ${match.awayTeam.name} match details`}
+      className="block rounded-lg transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <article className="rounded-lg border border-border/80 bg-card/60 px-4 py-3 transition hover:border-primary/40 sm:px-4">
+        {body}
+      </article>
+    </Link>
   );
 }

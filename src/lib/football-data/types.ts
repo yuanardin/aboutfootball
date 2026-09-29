@@ -107,6 +107,34 @@ export type FootballDataTeamMatchesResponse = {
   matches: FootballDataMatch[];
 };
 
+export type FootballDataGoal = {
+  minute: number | null;
+  injuryTime?: number | null;
+  type?: string | null;
+  team?: { id?: number; name?: string } | null;
+  scorer?: { id?: number; name?: string } | null;
+  assist?: { id?: number; name?: string } | null;
+};
+
+export type FootballDataReferee = {
+  id?: number;
+  name?: string | null;
+  type?: string | null;
+  nationality?: string | null;
+};
+
+// GET /v4/matches/{id} answers with the match fields at the top level plus
+// incident lists (goals, bookings, referees, ...). Only the fields ScoreCast
+// renders are typed; everything else is ignored. `venue` is kept optional —
+// the provider only includes it for some matches, so the UI must render it
+// conditionally and never invent a value.
+export type FootballDataMatchDetailResponse = Omit<FootballDataMatch, 'id'> & {
+  id: number;
+  venue?: string | null;
+  goals?: FootballDataGoal[] | null;
+  referees?: FootballDataReferee[] | null;
+};
+
 export type FootballDataSource = 'live' | 'unavailable';
 
 export type FootballDataMeta = {
@@ -169,3 +197,57 @@ export type ResultsOverview = {
   /** Competitions currently showing the provider's last known data after a throttle. */
   stale: CompetitionCode[];
 };
+
+// Badge shown on the match detail page. The provider's raw status is always
+// preserved alongside so no information is lost (e.g. PAUSED renders a LIVE
+// badge with a "Half time" sub-label).
+export type MatchDetailBadge = 'LIVE' | 'FT' | 'UPCOMING' | 'POSTPONED' | 'SUSPENDED' | 'CANCELLED';
+
+export type MatchDetailGoal = {
+  minute: number | null;
+  injuryTime: number | null;
+  type: string | null;
+  teamId: number | null;
+  teamName: string | null;
+  scorer: string | null;
+  assist: string | null;
+};
+
+export type MatchDetailReferee = {
+  name: string;
+  role: string | null;
+  nationality: string | null;
+};
+
+export type MatchDetail = {
+  id: number;
+  status: FootballDataMatchStatus;
+  badge: MatchDetailBadge;
+  statusLabel: string;
+  isLive: boolean;
+  kickoff: string;
+  competition: string;
+  competitionCode: string | null;
+  competitionEmblem: string | null;
+  season: string;
+  matchday: number | null;
+  stage: string | null;
+  group: string | null;
+  lastUpdated: string;
+  venue: string | null;
+  homeTeam: { id: number | null; name: string; shortName: string; crest: string | null };
+  awayTeam: { id: number | null; name: string; shortName: string; crest: string | null };
+  score: {
+    home: number | null;
+    away: number | null;
+    halfHome: number | null;
+    halfAway: number | null;
+    winner: string | null;
+  };
+  goals: MatchDetailGoal[];
+  referees: MatchDetailReferee[];
+};
+
+export type MatchDetailResult =
+  | { match: MatchDetail; error: null; notFound: false }
+  | { match: null; error: string; notFound: boolean };

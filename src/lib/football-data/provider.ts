@@ -1,5 +1,6 @@
 import 'server-only';
 import type {
+  FootballDataMatchDetailResponse,
   FootballDataMatchesResponse,
   FootballDataStandingsResponse,
   FootballDataTeamMatchesResponse,
@@ -135,4 +136,8 @@ export function fetchTeamMatches(
   query: Record<string, string>
 ): Promise<FootballDataTeamMatchesResponse> {
   return apiRequest<FootballDataTeamMatchesResponse>(`/teams/${teamId}/matches`, query);
+}
+
+export function fetchMatchDetail(matchId: number): Promise<FootballDataMatchDetailResponse> {
+  return apiRequest<FootballDataMatchDetailResponse>(`/matches/${matchId}`);
 }

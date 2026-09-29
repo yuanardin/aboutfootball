@@ -10,6 +10,7 @@ import { SectionHeader } from '@/components/football/section-header';
 import { MatchCard } from '@/components/football/match-card';
 import { useUser, useFirebase } from '@/firebase';
 import { getTeamMatchesAction } from '@/app/actions';
+import { toMatchDetailPath } from '@/lib/football-data/match-links';
 import type { FootballDataMatchStatus } from '@/lib/football-data/types';
 import type { TeamMatchesResult } from '@/lib/football-data/service';
 import {
@@ -130,6 +131,7 @@ function FixtureCard({
   const showScore = isLiveStatus(match.status) || isFinishedStatus(match.status);
   const homeScore = match.homeTeam.score ?? '-';
   const awayScore = match.awayTeam.score ?? '-';
+  const detailHref = toMatchDetailPath(match.id);
 
   return (
     <div className="rounded-lg border border-border/70 bg-card/60 p-5">
@@ -167,6 +169,17 @@ function FixtureCard({
         {match.competition ? ` · ${match.competition}` : ''}
         {match.matchday ? ` · Matchday ${match.matchday}` : ''}
       </p>
+
+      {detailHref && (
+        <Link
+          href={detailHref}
+          aria-label={`View ${match.homeTeam.name} vs ${match.awayTeam.name} match details`}
+          className="mt-3 inline-flex items-center gap-1 rounded-md text-sm font-semibold text-primary transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          View match details
+          <ChevronRight className="h-4 w-4" aria-hidden="true" />
+        </Link>
+      )}
     </div>
   );
 }
@@ -174,6 +187,7 @@ function FixtureCard({
 function LiveMatchBanner({ match }: { match: TeamMatchDto }) {
   const homeScore = match.homeTeam.score ?? '-';
   const awayScore = match.awayTeam.score ?? '-';
+  const detailHref = toMatchDetailPath(match.id);
 
   return (
     <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-5" role="status">
@@ -211,6 +225,17 @@ function LiveMatchBanner({ match }: { match: TeamMatchDto }) {
         Kicked off {formatKickoff(match.utcDate)}
         {match.matchday ? ` · Matchday ${match.matchday}` : ''} · score updates automatically
       </p>
+
+      {detailHref && (
+        <Link
+          href={detailHref}
+          aria-label={`View live ${match.homeTeam.name} vs ${match.awayTeam.name} match details`}
+          className="mt-3 inline-flex items-center gap-1 rounded-md text-sm font-semibold text-primary transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          View live match details
+          <ChevronRight className="h-4 w-4" aria-hidden="true" />
+        </Link>
+      )}
     </div>
   );
 }
