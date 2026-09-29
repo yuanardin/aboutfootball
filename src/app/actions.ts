@@ -6,7 +6,7 @@ import { getCompetitionTeams, getStandings, getTeamMatches } from '@/lib/footbal
 import type { TeamMatchesResult } from '@/lib/football-data/service';
 import {
   DEFAULT_COMPETITION,
-  isCompetitionCode,
+  getClubSelectionCodes,
   type CompetitionCode,
 } from '@/lib/football-data/competitions';
 import type { FootballDataMeta, FootballDataTeam } from '@/lib/football-data/types';
@@ -40,23 +40,33 @@ export type ClubListResult = {
 };
 
 export async function getClubList(competitionCode?: string): Promise<ClubListResult> {
-  const code: CompetitionCode = isCompetitionCode(competitionCode)
-    ? competitionCode
-    : DEFAULT_COMPETITION;
-  const result = await getCompetitionTeams(code);
+  const codes = getClubSelectionCodes(competitionCode);
+  const results = await Promise.all(codes.map((code) => getCompetitionTeams(code)));
+  const teamsById = new Map<number, ClubOption>();
 
-  if (result.error) {
-    return { teams: [], error: result.error };
+  for (const result of results) {
+    if (result.error) continue;
+
+    for (const team of result.teams) {
+      teamsById.set(team.id, {
+        id: team.id,
+        name: team.name,
+        shortName: team.shortName ?? team.name,
+        tla: team.tla ?? null,
+        crest: team.crest ?? null,
+      });
+    }
+  }
+
+  const teams = [...teamsById.values()].sort((a, b) => a.name.localeCompare(b.name));
+  const firstError = results.find((result) => result.error)?.error ?? null;
+
+  if (!teams.length) {
+    return { teams: [], error: firstError ?? 'Unable to load the club list right now. Please try again later.' };
   }
 
   return {
-    teams: result.teams.map((team) => ({
-      id: team.id,
-      name: team.name,
-      shortName: team.shortName ?? team.name,
-      tla: team.tla ?? null,
-      crest: team.crest ?? null,
-    })),
+    teams,
     error: null,
   };
 }

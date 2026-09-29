@@ -25,6 +25,8 @@ export const COMPETITIONS: readonly CompetitionOption[] = [
   { code: 'CL', label: 'Champions League', title: 'UEFA Champions League', format: 'cup' },
 ] as const;
 
+export const TOP_EUROPEAN_LEAGUES: readonly CompetitionCode[] = ['PL', 'PD', 'SA', 'BL1', 'FL1'] as const;
+
 export const COMPETITION_CODES: readonly CompetitionCode[] = COMPETITIONS.map(
   (competition) => competition.code
 );
@@ -47,6 +49,14 @@ export function isCompetitionSelection(value: unknown): value is CompetitionSele
 
 export function getCompetition(code: CompetitionCode): CompetitionOption {
   return COMPETITIONS.find((competition) => competition.code === code) ?? COMPETITIONS[0];
+}
+
+export function getClubSelectionCodes(competitionCode?: string): CompetitionCode[] {
+  if (competitionCode && isCompetitionCode(competitionCode)) {
+    return [competitionCode];
+  }
+
+  return [...TOP_EUROPEAN_LEAGUES];
 }
 
 export function competitionLabel(code: CompetitionCode): string {
