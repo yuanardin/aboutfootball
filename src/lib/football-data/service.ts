@@ -26,6 +26,7 @@ import type {
 } from './types';
 import { describeMatchStatus } from './match-links';
 export { matchDetailPath, parseMatchRouteId, toMatchDetailPath } from './match-links';
+import { mapWithConcurrency } from '../async-pool';
 import type { MatchResult, Standing, StandingGroup } from '@/lib/types';
 import {
   COMPETITIONS,
@@ -384,15 +385,24 @@ export async function getStandings(
   });
 }
 
+// Bulk reads (the "All" overviews) go through a small pool instead of firing
+// every competition at once. Cached competitions still resolve instantly via
+// the per-key TTL cache inside loadLive — only genuinely missing competitions
+// reach the network, at most BULK_COMPETITION_CONCURRENCY at a time. Single-
+// competition pages bypass the pool entirely and stay as fast as before.
+const BULK_COMPETITION_CONCURRENCY = 2;
+
 // Loads every registered competition. Each competition is cached independently, so a
 // failure in one league never affects the others and no placeholder data is substituted.
 export async function getAllStandings(): Promise<StandingsOverview> {
-  const entries = await Promise.all(
-    COMPETITIONS.map(async (competition): Promise<CompetitionStandingsResult> => ({
+  const entries = await mapWithConcurrency(
+    COMPETITIONS,
+    BULK_COMPETITION_CONCURRENCY,
+    async (competition): Promise<CompetitionStandingsResult> => ({
       code: competition.code,
       label: competition.label,
       payload: await getStandings(competition.code),
-    }))
+    })
   );
 
   const live = entries.filter((entry) => entry.payload.meta.source === 'live');
@@ -428,12 +438,14 @@ export async function getAllStandings(): Promise<StandingsOverview> {
 }
 
 export async function getAllResults(): Promise<ResultsOverview> {
-  const entries = await Promise.all(
-    COMPETITIONS.map(async (competition): Promise<CompetitionResultsResult> => ({
+  const entries = await mapWithConcurrency(
+    COMPETITIONS,
+    BULK_COMPETITION_CONCURRENCY,
+    async (competition): Promise<CompetitionResultsResult> => ({
       code: competition.code,
       label: competition.label,
       payload: await getResults(competition.code),
-    }))
+    })
   );
 
   const live = entries.filter((entry) => entry.payload.meta.source === 'live');
