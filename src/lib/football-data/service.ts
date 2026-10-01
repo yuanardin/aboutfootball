@@ -115,6 +115,14 @@ function logFailure(error: unknown, scope: string): void {
         : error.kind === 'rate-limit'
           ? 'RATE LIMIT'
           : error.kind.toUpperCase();
+    // Rate limiting is an expected free-tier provider state, already surfaced to
+    // users as paused/unavailable via loadLive() — warn so it stays observable
+    // without tripping error monitoring. Genuinely unexpected failures keep
+    // console.error.
+    if (error.kind === 'rate-limit') {
+      console.warn(`[football-data] ${scope} throttled (${label}): ${error.message}`);
+      return;
+    }
     console.error(`[football-data] ${scope} failed (${label}): ${error.message}`);
     return;
   }
