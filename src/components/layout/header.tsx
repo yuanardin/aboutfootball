@@ -15,7 +15,7 @@ import {
   UserCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Logo } from '../icons/logo';
 import { useAuth } from '@/firebase';
 import { useUser } from '@/firebase/auth/use-user';
@@ -200,6 +200,7 @@ export function Header() {
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-[300px] border-border bg-background p-5">
+              <SheetTitle className="sr-only">Main navigation</SheetTitle>
               <Link href="/" className="mb-8 flex items-center gap-2.5" aria-label="ScoreCast home">
                 <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary/15 text-primary">
                   <Logo className="h-5 w-5" />
