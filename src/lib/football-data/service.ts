@@ -635,7 +635,7 @@ async function loadTeamMatchesFromApi(teamId: number): Promise<TeamMatchesResult
     if (existing) {
       return {
         ...existing.value,
-        error: 'Live updates paused â€” showing last known match data.',
+        error: 'Live updates paused — showing last known match data.',
         stale: true,
       };
     }
@@ -643,7 +643,7 @@ async function loadTeamMatchesFromApi(teamId: number): Promise<TeamMatchesResult
       upcoming: null,
       previous: null,
       live: null,
-      error: 'Unable to load this teamâ€™s matches right now. Please try again later.',
+      error: 'Unable to load this team’s matches right now. Please try again later.',
       stale: false,
     };
   }
@@ -706,7 +706,7 @@ function mapMatchDetailGoal(
 }
 
 // Normalizes one GET /v4/matches/{id} response. Only fields the provider
-// actually returned are kept â€” venue, goals and referees stay null/empty when
+// actually returned are kept — venue, goals and referees stay null/empty when
 // the API omits them instead of being substituted.
 function mapMatchDetail(response: FootballDataMatchDetailResponse): MatchDetail {
   const candidate =
@@ -802,7 +802,7 @@ function mapMatchDetail(response: FootballDataMatchDetailResponse): MatchDetail 
 // in-memory cache family as results/standings) so a LIVE page can refresh
 // without hammering the free-tier quota. A provider 404 becomes `notFound`;
 // every other failure becomes a plain error the page renders as
-// "Live match data unavailable" â€” dummy data is never substituted.
+// "Live match data unavailable" — dummy data is never substituted.
 export async function getMatchDetail(matchId: number): Promise<MatchDetailResult> {
   if (!Number.isInteger(matchId) || matchId <= 0 || matchId > 10_000_000) {
     return { match: null, error: 'Match not found.', notFound: true };

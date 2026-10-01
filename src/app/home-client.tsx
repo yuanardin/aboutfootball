@@ -254,18 +254,28 @@ export function HomeClient({
                 onRetry={() => router.refresh()}
               />
             </div>
+          ) : standings.length > 0 && standingsLive ? (
+            <div className="min-w-0">
+              <SectionHeader eyebrow="League table" title={standingsMeta?.competition ?? ''} href="/standings" action="Full table" />
+              <StandingsTable
+                standings={standings}
+                compact
+                title={standingsMeta?.competition ?? ''}
+                subtitle={latestStandingSeason}
+              />
+            </div>
           ) : (
-            standings.length > 0 && (
-              <div className="min-w-0">
-                <SectionHeader eyebrow="League table" title={standingsMeta?.competition ?? ''} href="/standings" action="Full table" />
-                <StandingsTable
-                  standings={standings}
-                  compact
-                  title={standingsMeta?.competition ?? ''}
-                  subtitle={latestStandingSeason}
-                />
-              </div>
-            )
+            <div className="min-w-0">
+              <SectionHeader eyebrow="League table" title="Standings" href="/standings" action="Full table" />
+              <ErrorState
+                title="Standings unavailable"
+                description={
+                  standingsMeta?.error ??
+                  'Live standings are not available right now. Please try again shortly.'
+                }
+                onRetry={() => router.refresh()}
+              />
+            </div>
           )}
         </section>
 
