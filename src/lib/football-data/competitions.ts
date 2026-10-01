@@ -31,8 +31,8 @@ export const COMPETITION_CODES: readonly CompetitionCode[] = COMPETITIONS.map(
   (competition) => competition.code
 );
 
-// The competition the personalized home page and "Your Team"/"Your Standings" default to.
-// Kept as PL so existing personalisation behaviour is unchanged.
+// The fallback competition for older favorite-team records that predate
+// competitionCode. New favorites persist their actual competition.
 export const DEFAULT_COMPETITION: CompetitionCode = 'PL';
 
 // Sentinel used by the /standings and /results selector for the combined view.

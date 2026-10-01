@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/football/empty-state';
 import { SectionHeader } from '@/components/football/section-header';
 import { useUser, useFirebase } from '@/firebase';
-import { getStandingsAction, type StandingsActionResult } from '@/app/actions';
+import { getStandingsForTeamAction, type StandingsActionResult } from '@/app/actions';
 import {
   getFavoriteTeam,
   getFirestoreErrorMessage,
@@ -82,10 +82,16 @@ export function YourStandingsSection() {
       .finally(() => setReading(false));
   }, [firestore, user]);
 
+  const favoriteId = favorite?.id ?? null;
+  const favoriteName = favorite?.name ?? null;
+  const favoriteCompetition = favorite?.competitionCode ?? null;
+  const favoriteKey = favorite ? `${favoriteId}|${favoriteCompetition ?? 'legacy'}|${favoriteName}` : null;
+
   const loadStandings = useCallback(async () => {
+    if (favoriteId == null || favoriteName == null) return;
     setStandingsLoading(true);
     try {
-      setStandings(await getStandingsAction());
+      setStandings(await getStandingsForTeamAction(favoriteName, favoriteCompetition));
     } catch {
       setStandings({
         standings: [],
@@ -95,17 +101,18 @@ export function YourStandingsSection() {
     } finally {
       setStandingsLoading(false);
     }
-  }, []);
+  }, [favoriteId, favoriteName, favoriteCompetition]);
 
   useEffect(() => {
     refresh();
   }, [refresh]);
 
   useEffect(() => {
-    if (favorite && !standings) {
-      loadStandings();
+    if (favoriteKey) {
+      setStandings(null);
+      void loadStandings();
     }
-  }, [favorite, standings, loadStandings]);
+  }, [favoriteKey, loadStandings]);
 
   if (authLoading || reading) {
     return <YourStandingsSkeleton />;

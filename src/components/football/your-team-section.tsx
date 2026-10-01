@@ -372,6 +372,7 @@ export function YourTeamSection({ matches, competition }: YourTeamSectionProps) 
   const recentMatches = matches
     .filter((match) => match.homeTeam.name === teamName || match.awayTeam.name === teamName)
     .slice(0, 3);
+  const displayedCompetition = teamMatches?.previous?.competition ?? teamMatches?.upcoming?.competition ?? competition;
 
   const hasMatches = Boolean(
     teamMatches?.upcoming || teamMatches?.previous || teamMatches?.live
@@ -384,7 +385,7 @@ export function YourTeamSection({ matches, competition }: YourTeamSectionProps) 
       <SectionHeader
         eyebrow="Personalized"
         title="Your team"
-        description={`Live updates for ${teamName} in the ${competition}.`}
+        description={`Live updates for ${teamName} in the ${displayedCompetition}.`}
         href="/profile"
         action="Change team"
       />
@@ -513,7 +514,7 @@ export function YourTeamSection({ matches, competition }: YourTeamSectionProps) 
             </div>
           ) : (
             <p className="text-sm leading-6 text-muted-foreground">
-              No recent {competition} results for {teamName} in the current feed.
+              No recent {displayedCompetition} results for {teamName} in the current feed.
             </p>
           )}
         </div>

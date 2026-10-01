@@ -167,7 +167,13 @@ export function FavoriteTeamCard({ user }: { user: User }) {
     }
   }, [favorite, loadMatches]);
 
-  const handleSelect = async (team: { id: number; name: string; shortName: string; crest: string | null }) => {
+  const handleSelect = async (team: {
+    id: number;
+    name: string;
+    shortName: string;
+    crest: string | null;
+    competitionCode: Exclude<FavoriteTeam['competitionCode'], null>;
+  }) => {
     if (!firestore || saving) return;
     setSaving(true);
     try {
@@ -175,6 +181,7 @@ export function FavoriteTeamCard({ user }: { user: User }) {
         id: team.id,
         name: team.shortName ?? team.name,
         crest: team.crest,
+        competitionCode: team.competitionCode,
       });
       setFavorite(saved);
       setPickerOpen(false);

@@ -2,14 +2,16 @@
 
 import { summarizeFootballNews } from '@/ai/flows/summarize-football-news';
 import { getNewsForTeam, type TeamNewsResult, type NewsRankingPreferences } from '@/lib/news/service';
-import { getCompetitionTeams, getStandings, getTeamMatches } from '@/lib/football-data/service';
+import { getAllStandings, getCompetitionTeams, getStandings, getTeamMatches } from '@/lib/football-data/service';
 import type { TeamMatchesResult } from '@/lib/football-data/service';
 import {
   DEFAULT_COMPETITION,
   getClubSelectionCodes,
   type CompetitionCode,
 } from '@/lib/football-data/competitions';
-import type { FootballDataMeta, FootballDataTeam } from '@/lib/football-data/types';
+import type { FootballDataMeta } from '@/lib/football-data/types';
+import { mergeClubLists } from '@/lib/football-data/club-list';
+import { mapWithConcurrency } from '@/lib/async-pool';
 import type { Standing } from '@/lib/types';
 import { z } from 'zod';
 import { ZodError } from 'zod';
@@ -32,6 +34,7 @@ export type ClubOption = {
   shortName: string;
   tla: string | null;
   crest: string | null;
+  competitionCode: CompetitionCode;
 };
 
 export type ClubListResult = {
@@ -41,34 +44,24 @@ export type ClubListResult = {
 
 export async function getClubList(competitionCode?: string): Promise<ClubListResult> {
   const codes = getClubSelectionCodes(competitionCode);
-  const results = await Promise.all(codes.map((code) => getCompetitionTeams(code)));
-  const teamsById = new Map<number, ClubOption>();
+  // Same quota-safe pattern as the multi-competition overviews: at most two
+  // leagues load at once, 24h-cached leagues resolve without any upstream
+  // call, and a single-competition selection still performs exactly one read.
+  const results = await mapWithConcurrency(codes, 2, (code) => getCompetitionTeams(code));
 
-  for (const result of results) {
-    if (result.error) continue;
-
-    for (const team of result.teams) {
-      teamsById.set(team.id, {
+  return mergeClubLists(
+    results.map((result, index) => ({
+      teams: result.teams.map((team) => ({
         id: team.id,
         name: team.name,
         shortName: team.shortName ?? team.name,
         tla: team.tla ?? null,
         crest: team.crest ?? null,
-      });
-    }
-  }
-
-  const teams = [...teamsById.values()].sort((a, b) => a.name.localeCompare(b.name));
-  const firstError = results.find((result) => result.error)?.error ?? null;
-
-  if (!teams.length) {
-    return { teams: [], error: firstError ?? 'Unable to load the club list right now. Please try again later.' };
-  }
-
-  return {
-    teams,
-    error: null,
-  };
+        competitionCode: codes[index],
+      })),
+      error: result.error,
+    }))
+  );
 }
 
 export async function getTeamMatchesAction(teamId: number): Promise<TeamMatchesResult> {
@@ -100,6 +93,37 @@ export async function getStandingsAction(
   }
 
   return { standings: payload.standings, meta: payload.meta, error: null };
+}
+
+export async function getStandingsForTeamAction(
+  teamName: string,
+  competitionCode: CompetitionCode | null
+): Promise<StandingsActionResult> {
+  if (competitionCode) return getStandingsAction(competitionCode);
+
+  const overview = await getAllStandings();
+  const normalizeTeamName = (value: string) =>
+    value
+      .toLowerCase()
+      .replace(/\b(fc|cf|afc)\b/g, '')
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim();
+  const normalizedName = normalizeTeamName(teamName);
+  const matchingEntry = overview.entries.find((entry) =>
+    entry.payload.standings.some(
+      (standing) => normalizeTeamName(standing.team.name) === normalizedName
+    )
+  );
+
+  if (!matchingEntry) {
+    return {
+      standings: [],
+      meta: null,
+      error: overview.meta.error ?? 'The team is not present in the available league tables.',
+    };
+  }
+
+  return getStandingsAction(matchingEntry.code);
 }
 
 export async function getNewsForTeamAction(

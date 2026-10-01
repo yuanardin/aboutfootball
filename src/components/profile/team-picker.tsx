@@ -148,6 +148,7 @@ export function TeamPicker({ open, onOpenChange, onSelect, saving }: TeamPickerP
                       </span>
                     )}
                     <span className="min-w-0 flex-1 truncate text-sm font-medium">{team.name}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground">{team.competitionCode}</span>
                     {team.tla && (
                       <span className="shrink-0 rounded bg-secondary px-1.5 py-0.5 font-mono text-[10px] font-semibold text-muted-foreground">
                         {team.tla}

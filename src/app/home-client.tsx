@@ -142,7 +142,7 @@ export function HomeClient({
               <Input
                 id="global-search"
                 type="search"
-                placeholder="Search teams, players, news..."
+                placeholder="Search news..."
                 className="input-surface h-12 rounded-lg pl-12 pr-24 text-base"
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}

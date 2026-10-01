@@ -1,5 +1,6 @@
 import type { Firestore } from 'firebase/firestore';
 import { deleteField, doc, getDoc, setDoc } from 'firebase/firestore';
+import type { CompetitionCode } from '@/lib/football-data/competitions';
 
 export const USERS_COLLECTION = 'users';
 
@@ -7,6 +8,7 @@ export type FavoriteTeam = {
   id: number;
   name: string;
   crest: string | null;
+  competitionCode: CompetitionCode | null;
   updatedAt: string;
 };
 
@@ -14,6 +16,7 @@ export type FavoriteTeamInput = {
   id: number;
   name: string;
   crest?: string | null;
+  competitionCode: CompetitionCode;
 };
 
 // Favorites live as a `favoriteTeam` object inside the user's own document:
@@ -36,10 +39,16 @@ export async function getFavoriteTeam(
   const id = Number(team.id);
   if (!Number.isInteger(id) || id <= 0) return null;
 
+  const competitionCode = team.competitionCode;
+  const validCompetitionCodes = ['PL', 'PD', 'SA', 'BL1', 'FL1', 'CL'] as const;
+
   return {
     id,
     name: typeof team.name === 'string' && team.name ? team.name : '',
     crest: typeof team.crest === 'string' && team.crest ? team.crest : null,
+    competitionCode: validCompetitionCodes.includes(competitionCode as (typeof validCompetitionCodes)[number])
+      ? (competitionCode as FavoriteTeam['competitionCode'])
+      : null,
     updatedAt: typeof team.updatedAt === 'string' ? team.updatedAt : '',
   };
 }
@@ -53,6 +62,7 @@ export async function saveFavoriteTeam(
     id: input.id,
     name: input.name,
     crest: input.crest ?? null,
+    competitionCode: input.competitionCode,
     updatedAt: new Date().toISOString(),
   };
   await setDoc(userDoc(firestore, uid), { favoriteTeam: value }, { merge: true });
