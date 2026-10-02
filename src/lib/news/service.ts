@@ -1,6 +1,7 @@
 import 'server-only';
 
 import type { NewsArticle } from '@/lib/types';
+import { dedupeArticlesById } from './dedupe';
 
 const NEWS_API_BASE_URL = 'https://newsapi.org/v2';
 // Football/soccer focused query, biased toward the top five European leagues.
@@ -25,6 +26,10 @@ export type NewsArticlesResult = {
 type CacheEntry = { value: NewsArticlesResult; expiresAt: number };
 
 const cache = new Map<string, CacheEntry>();
+// Concurrent renders (e.g. fast Home ↔ News navigation while a fetch is still
+// running) share one upstream read instead of each firing the sequential
+// fallback queries — same in-flight dedupe pattern as the club-news cache.
+const newsInFlight = new Map<string, Promise<NewsArticlesResult>>();
 
 export type NewsFailureKind = 'config' | 'http' | 'network' | 'timeout';
 
@@ -441,11 +446,13 @@ async function fetchNewsFeed(): Promise<NewsArticlesResult> {
       const payload = await newsApiRequest(endpoint);
       providerResponded = true;
 
-      const articles = sortFeedArticles(
-        (payload.articles ?? [])
-          .map(mapLiveArticle)
-          .filter((article): article is NewsArticle => Boolean(article))
-          .filter(isFootballRelevant)
+      const articles = dedupeArticlesById(
+        sortFeedArticles(
+          (payload.articles ?? [])
+            .map(mapLiveArticle)
+            .filter((article): article is NewsArticle => Boolean(article))
+            .filter(isFootballRelevant)
+        )
       ).slice(0, NEWS_DISPLAY_LIMIT);
 
       if (articles.length) {
@@ -469,14 +476,7 @@ async function fetchNewsFeed(): Promise<NewsArticlesResult> {
   );
 }
 
-async function getCachedNewsFeed(): Promise<NewsArticlesResult> {
-  const now = Date.now();
-  const existing = cache.get(NEWS_CACHE_KEY);
-
-  if (existing && existing.expiresAt > now) {
-    return existing.value;
-  }
-
+async function loadNewsFeed(): Promise<NewsArticlesResult> {
   let result: NewsArticlesResult;
   try {
     result = await fetchNewsFeed();
@@ -491,6 +491,28 @@ async function getCachedNewsFeed(): Promise<NewsArticlesResult> {
 
   cache.set(NEWS_CACHE_KEY, { value: result, expiresAt: Date.now() + NEWS_CACHE_TTL_MS });
   return result;
+}
+
+async function getCachedNewsFeed(): Promise<NewsArticlesResult> {
+  const now = Date.now();
+  const existing = cache.get(NEWS_CACHE_KEY);
+
+  if (existing && existing.expiresAt > now) {
+    return existing.value;
+  }
+
+  const inFlight = newsInFlight.get(NEWS_CACHE_KEY);
+  if (inFlight) {
+    return inFlight;
+  }
+
+  const pending = loadNewsFeed();
+  newsInFlight.set(NEWS_CACHE_KEY, pending);
+  try {
+    return await pending;
+  } finally {
+    newsInFlight.delete(NEWS_CACHE_KEY);
+  }
 }
 
 export async function getNewsArticles(): Promise<NewsArticlesResult> {
@@ -692,13 +714,14 @@ async function fetchClubNews(clubName: string, aliases: string[]): Promise<TeamN
 
       const terms = [clubName, ...aliases].map((term) => term.toLowerCase()).filter(Boolean);
 
-      const articles = [...(payload.articles ?? [])]
-        .map(mapClubArticle)
-        .filter((article): article is NewsArticle => Boolean(article))
-        .filter(isClubArticleRelevant)
-        .filter((article) => mentionsClub(article, terms))
-        .sort(sortByPublishedAt)
-        .slice(0, TEAM_NEWS_DISPLAY_LIMIT);
+      const articles = dedupeArticlesById(
+        [...(payload.articles ?? [])]
+          .map(mapClubArticle)
+          .filter((article): article is NewsArticle => Boolean(article))
+          .filter(isClubArticleRelevant)
+          .filter((article) => mentionsClub(article, terms))
+          .sort(sortByPublishedAt)
+      ).slice(0, TEAM_NEWS_DISPLAY_LIMIT);
 
       if (articles.length) {
         return {

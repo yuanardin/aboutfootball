@@ -10,6 +10,7 @@ import { NewsCard } from '@/components/news/news-card';
 import { SaveArticleButton } from '@/components/news/save-article-button';
 import { EmptyState } from '@/components/football/empty-state';
 import type { NewsArticle } from '@/lib/types';
+import { composeNewsGrid } from '@/lib/news/compose';
 import { cn, getImageById } from '@/lib/utils';
 
 type NewsExplorerProps = {
@@ -41,13 +42,15 @@ function FeaturedStory({ article }: { article: NewsArticle }) {
 
   return (
     <article className="group relative overflow-hidden rounded-2xl border border-border bg-card shadow-card transition duration-200 hover:border-primary/40 hover:shadow-lift md:grid md:grid-cols-[1.18fr_1fr]">
-      <Link
-        href={article.articleUrl ?? '#'}
-        target={article.articleUrl ? '_blank' : undefined}
-        rel="noreferrer"
-        className="absolute inset-0 z-10 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
-        aria-label={article.title}
-      />
+      {article.articleUrl && (
+        <Link
+          href={article.articleUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="absolute inset-0 z-10 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+          aria-label={article.title}
+        />
+      )}
       <div className="relative aspect-[16/10] overflow-hidden bg-secondary md:aspect-auto md:min-h-full">
         {image ? (
           <Image
@@ -94,36 +97,13 @@ export function NewsExplorer({ articles, source, provider, lastUpdated, error }:
 
   const feedUnavailable = source === 'unavailable' || Boolean(error) || articles.length === 0;
 
-  const categories = useMemo(
-    () => [
-      'All',
-      ...Array.from(
-        new Set(
-          articles.map((article) => article.category).filter((value): value is string => Boolean(value))
-        )
-      ),
-    ],
-    [articles]
-  );
-
-  const isFiltering = searchTerm.trim() !== '' || activeCategory !== 'All';
-
-  const filteredArticles = useMemo(
-    () =>
-      articles.filter((article) => {
-        const term = searchTerm.trim().toLowerCase();
-        const matchesSearch =
-          !term ||
-          [article.title, article.excerpt, article.source, article.category].some((value) =>
-            value?.toLowerCase().includes(term)
-          );
-        return matchesSearch && (activeCategory === 'All' || article.category === activeCategory);
-      }),
+  // Defensive last gate: gridArticles is derived from a deduplicated list so a
+  // duplicate id can never reach the `key={article.id}` map below, no matter
+  // what the server payload contained.
+  const { categories, isFiltering, filteredArticles, featuredArticle, gridArticles } = useMemo(
+    () => composeNewsGrid(articles, { searchTerm, activeCategory }),
     [activeCategory, articles, searchTerm]
   );
-
-  const featuredArticle = filteredArticles[0] ?? articles[0];
-  const gridArticles = isFiltering ? filteredArticles : filteredArticles.filter((article) => article.id !== featuredArticle?.id);
 
   const clearFilters = () => {
     setSearchTerm('');
