@@ -1,4 +1,3 @@
-import Image from 'next/image';
 import Link from 'next/link';
 import type { MatchResult } from '@/lib/types';
 import { toMatchDetailPath } from '@/lib/football-data/match-links';
@@ -74,14 +73,19 @@ function TeamLogo({
     );
   }
 
+  // Crests are tiny fixed-size SVGs served straight from the provider CDN.
+  // A plain img avoids a round-trip through the Next image optimizer (which
+  // does not optimize SVGs) for every row in a results list.
   return (
-    <Image
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
       src={src}
       alt={alt}
       width={size}
       height={size}
+      loading="lazy"
+      decoding="async"
       className={cn('shrink-0 object-contain', size === 24 ? 'h-6 w-6' : 'h-5 w-5')}
-      data-ai-hint={logo?.imageHint}
     />
   );
 }

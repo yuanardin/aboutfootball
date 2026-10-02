@@ -1,4 +1,3 @@
-import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowLeft, CalendarDays, Flag, MapPin, ShieldHalf } from 'lucide-react';
 import { YourTeamBadge } from '@/components/football/your-team-badge';
@@ -55,12 +54,16 @@ function TeamCrest({ crest, alt, size = 64 }: { crest: string | null; alt: strin
       </span>
     );
   }
+  // Provider crests are tiny fixed-size SVGs — served directly so the page
+  // does not wait on the image optimizer for above-the-fold content.
   return (
-    <Image
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
       src={crest}
       alt={alt}
       width={size}
       height={size}
+      decoding="async"
       className="shrink-0 object-contain"
       style={{ width: size, height: size }}
     />

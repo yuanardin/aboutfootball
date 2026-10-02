@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import Image from 'next/image';
 import { Trophy } from 'lucide-react';
 import type { Standing } from '@/lib/types';
 import { getImageById, cn } from '@/lib/utils';
@@ -135,13 +134,15 @@ export function StandingsTable({
                   <th scope="row" className={cn('sticky left-10 z-10 bg-card px-3 py-3 text-left font-normal')}>
                     <div className="flex items-center gap-2.5">
                       {hasLogo && (logo?.imageUrl || standing.team.crest) ? (
-                        <Image
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
                           src={standing.team.crest ?? logo?.imageUrl ?? ''}
                           alt=""
                           width={24}
                           height={24}
+                          loading="lazy"
+                          decoding="async"
                           className="h-6 w-6 shrink-0 object-contain"
-                          data-ai-hint={logo?.imageHint}
                         />
                       ) : (
                         <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full border border-border bg-secondary text-[10px] font-bold text-muted-foreground">
