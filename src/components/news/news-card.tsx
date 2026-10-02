@@ -21,13 +21,15 @@ export function NewsCard({ article, featured = false, priority = false }: NewsCa
         featured && 'md:grid md:grid-cols-[1.18fr_1fr]'
       )}
     >
-      <Link
-        href={article.articleUrl ?? '#'}
-        target={article.articleUrl ? '_blank' : undefined}
-        rel="noreferrer"
-        className="absolute inset-0 z-10 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
-        aria-label={article.title}
-      />
+      {article.articleUrl && (
+        <Link
+          href={article.articleUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="absolute inset-0 z-10 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+          aria-label={article.title}
+        />
+      )}
       <div
         className={cn(
           'relative overflow-hidden bg-secondary',

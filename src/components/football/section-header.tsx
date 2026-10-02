@@ -11,7 +11,7 @@ type SectionHeaderProps = {
 
 export function SectionHeader({ eyebrow, title, description, href, action = 'View all' }: SectionHeaderProps) {
   return (
-    <div className="mb-6 flex items-end justify-between gap-4">
+    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
       <div className="min-w-0">
         {eyebrow && <p className="eyebrow mb-2.5">{eyebrow}</p>}
         <h2 className="text-section-title">{title}</h2>
@@ -20,7 +20,7 @@ export function SectionHeader({ eyebrow, title, description, href, action = 'Vie
       {href && (
         <Link
           href={href}
-          className="link-arrow mb-0.5 shrink-0"
+          className="link-arrow self-start sm:mb-0.5 sm:shrink-0 sm:self-auto"
         >
           {action} <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>

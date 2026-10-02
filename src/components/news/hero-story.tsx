@@ -14,13 +14,15 @@ export function HeroStory({ article }: { article: NewsArticle }) {
 
   return (
     <article className="group relative overflow-hidden rounded-2xl border border-border bg-card shadow-lift">
-      <Link
-        href={article.articleUrl ?? '#'}
-        target={article.articleUrl ? '_blank' : undefined}
-        rel="noreferrer"
-        className="absolute inset-0 z-20 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-        aria-label={article.title}
-      />
+      {article.articleUrl && (
+        <Link
+          href={article.articleUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="absolute inset-0 z-20 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          aria-label={article.title}
+        />
+      )}
       <div className="relative aspect-[4/3] sm:aspect-[16/10] lg:aspect-auto lg:h-[430px]">
         {image ? (
           <Image
