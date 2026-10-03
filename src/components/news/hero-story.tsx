@@ -1,9 +1,9 @@
-import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowUpRight, Clock3 } from 'lucide-react';
+import { ArrowUpRight, Clock3, Newspaper } from 'lucide-react';
 import type { NewsArticle } from '@/lib/types';
 import { getImageById } from '@/lib/utils';
 import { SaveArticleButton } from './save-article-button';
+import { NewsImage } from './news-image';
 
 export function HeroStory({ article }: { article: NewsArticle }) {
   const fallbackImage = getImageById(article.imageId);
@@ -25,17 +25,20 @@ export function HeroStory({ article }: { article: NewsArticle }) {
       )}
       <div className="relative aspect-[4/3] sm:aspect-[16/10] lg:aspect-auto lg:h-[430px]">
         {image ? (
-          <Image
+          <NewsImage
             src={image.imageUrl}
             alt={image.description}
-            fill
-            priority
+            eager
             sizes="(max-width: 1024px) 100vw, 55vw"
-            className="object-cover transition duration-700 group-hover:scale-[1.04]"
-            data-ai-hint={'imageHint' in image ? image.imageHint : article.title}
+            className="transition duration-700 group-hover:scale-[1.04]"
+            hint={'imageHint' in image ? image.imageHint : article.title}
           />
         ) : (
-          <div className="absolute inset-0 bg-secondary" />
+          <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-secondary via-secondary to-muted" aria-hidden="true">
+            <span className="grid h-11 w-11 place-items-center rounded-full border border-border bg-background/60 text-muted-foreground">
+              <Newspaper className="h-5 w-5" aria-hidden="true" />
+            </span>
+          </div>
         )}
         <SaveArticleButton article={article} className="z-30" />
         <div

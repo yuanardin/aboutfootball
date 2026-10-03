@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowUpRight, Bookmark, Loader2, Newspaper, RefreshCw, Trash2 } from 'lucide-react';
 import type { User } from 'firebase/auth';
@@ -11,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { cn, getImageById } from '@/lib/utils';
+import { NewsImage } from '@/components/news/news-image';
 import {
   getSavedArticles,
   getFirestoreErrorMessage,
@@ -58,13 +58,11 @@ function SavedArticleRow({
           className="relative block h-16 w-24 shrink-0 overflow-hidden rounded-lg bg-secondary transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {image ? (
-            <Image
+            <NewsImage
               src={image.imageUrl}
               alt=""
-              fill
               sizes="96px"
-              className="object-cover"
-              data-ai-hint={'imageHint' in image ? image.imageHint : article.title}
+              hint={'imageHint' in image ? image.imageHint : article.title}
             />
           ) : (
             <span className="grid h-full w-full place-items-center text-muted-foreground">
@@ -75,13 +73,11 @@ function SavedArticleRow({
       ) : (
         <span className="relative block h-16 w-24 shrink-0 overflow-hidden rounded-lg bg-secondary">
           {image ? (
-            <Image
+            <NewsImage
               src={image.imageUrl}
               alt=""
-              fill
               sizes="96px"
-              className="object-cover"
-              data-ai-hint={'imageHint' in image ? image.imageHint : article.title}
+              hint={'imageHint' in image ? image.imageHint : article.title}
             />
           ) : (
             <span className="grid h-full w-full place-items-center text-muted-foreground">

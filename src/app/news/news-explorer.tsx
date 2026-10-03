@@ -1,12 +1,12 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { AlertTriangle, ArrowUpRight, Clock3, Newspaper, Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { NewsCard } from '@/components/news/news-card';
+import { NewsImage } from '@/components/news/news-image';
 import { SaveArticleButton } from '@/components/news/save-article-button';
 import { EmptyState } from '@/components/football/empty-state';
 import type { NewsArticle } from '@/lib/types';
@@ -53,17 +53,20 @@ function FeaturedStory({ article }: { article: NewsArticle }) {
       )}
       <div className="relative aspect-[16/10] overflow-hidden bg-secondary md:aspect-auto md:min-h-full">
         {image ? (
-          <Image
+          <NewsImage
             src={image.imageUrl}
             alt={image.description}
-            fill
-            priority
+            eager
             sizes="(max-width: 768px) 100vw, 55vw"
-            className="object-cover transition duration-500 group-hover:scale-[1.04]"
-            data-ai-hint={article.title}
+            className="transition duration-500 group-hover:scale-[1.04]"
+            hint={article.title}
           />
         ) : (
-          <div className="absolute inset-0 bg-secondary" />
+          <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-secondary via-secondary to-muted" aria-hidden="true">
+            <span className="grid h-11 w-11 place-items-center rounded-full border border-border bg-background/60 text-muted-foreground">
+              <Newspaper className="h-5 w-5" aria-hidden="true" />
+            </span>
+          </div>
         )}
         <SaveArticleButton article={article} className="z-20" />
       </div>

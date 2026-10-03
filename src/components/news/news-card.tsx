@@ -1,9 +1,9 @@
-import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowUpRight, Clock3 } from 'lucide-react';
+import { ArrowUpRight, Clock3, Newspaper } from 'lucide-react';
 import type { NewsArticle } from '@/lib/types';
 import { cn, getImageById } from '@/lib/utils';
 import { SaveArticleButton } from './save-article-button';
+import { NewsImage } from './news-image';
 
 type NewsCardProps = { article: NewsArticle; featured?: boolean; priority?: boolean };
 
@@ -37,17 +37,20 @@ export function NewsCard({ article, featured = false, priority = false }: NewsCa
         )}
       >
         {image ? (
-          <Image
+          <NewsImage
             src={image.imageUrl}
             alt={image.description}
-            fill
-            priority={priority}
+            eager={priority}
             sizes={featured ? '(max-width: 768px) 100vw, 60vw' : '(max-width: 768px) 100vw, 33vw'}
-            className="object-cover transition duration-500 group-hover:scale-[1.04]"
-            data-ai-hint={'imageHint' in image ? image.imageHint : article.title}
+            className="transition duration-500 group-hover:scale-[1.04]"
+            hint={'imageHint' in image ? image.imageHint : article.title}
           />
         ) : (
-          <div className="absolute inset-0 bg-secondary" />
+          <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-secondary via-secondary to-muted" aria-hidden="true">
+            <span className="grid h-11 w-11 place-items-center rounded-full border border-border bg-background/60 text-muted-foreground">
+              <Newspaper className="h-5 w-5" aria-hidden="true" />
+            </span>
+          </div>
         )}
         <SaveArticleButton article={article} className="z-20" />
       </div>
