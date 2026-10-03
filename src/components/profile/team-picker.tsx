@@ -101,11 +101,11 @@ export function TeamPicker({ open, onOpenChange, onSelect, saving }: TeamPickerP
           {loading ? (
             <div className="space-y-2 p-3" aria-label="Loading clubs" role="status">
               {Array.from({ length: 6 }).map((_, index) => (
-                <Skeleton key={index} className="h-11 w-full rounded-md" />
+                <Skeleton key={`club-skeleton-${index}`} className="h-11 w-full rounded-md" />
               ))}
             </div>
           ) : failed ? (
-            <div className="px-4 py-8 text-center">
+            <div className="px-4 py-8 text-center" role="alert">
               <p className="text-sm text-muted-foreground">
                 The club list could not be loaded. Check your connection and try again.
               </p>

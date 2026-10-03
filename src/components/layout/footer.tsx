@@ -44,7 +44,7 @@ export async function Footer() {
           <p className="mt-4 max-w-xs text-sm leading-6 text-muted-foreground">
             Football news, scores and insights — without the clutter.
           </p>
-          <p className="mt-6 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+          <p role="status" className="mt-6 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
             <span
               className={`h-1.5 w-1.5 rounded-full ${liveConnected ? 'bg-success' : 'bg-warning'}`}
               aria-hidden="true"
@@ -56,21 +56,21 @@ export async function Footer() {
         </div>
         <div className="grid grid-cols-1 gap-8 sm:grid-cols-3">
           {columns.map((column) => (
-            <div key={column.title}>
-              <p className="text-label">{column.title}</p>
+            <nav key={column.title} aria-label={`Footer — ${column.title}`}>
+              <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{column.title}</h3>
               <ul className="mt-3 space-y-2.5">
                 {column.links.map((link) => (
                   <li key={`${column.title}-${link.label}`}>
                     <Link
                       href={link.href}
-                      className="text-sm text-muted-foreground transition hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="rounded-md text-sm text-muted-foreground transition hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       {link.label}
                     </Link>
                   </li>
                 ))}
               </ul>
-            </div>
+            </nav>
           ))}
         </div>
       </div>

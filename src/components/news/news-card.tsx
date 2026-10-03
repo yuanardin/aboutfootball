@@ -49,11 +49,11 @@ export function NewsCard({ article, featured = false, priority = false }: NewsCa
         ) : (
           <div className="absolute inset-0 bg-secondary" />
         )}
-        <SaveArticleButton article={article} />
+        <SaveArticleButton article={article} className="z-20" />
       </div>
       <div className={cn('flex flex-col', featured ? 'p-6 sm:p-8' : 'p-5')}>
         <div className="mb-3 flex items-center gap-2">
-          <span className="chip !h-6 !text-[11px]">{category}</span>
+          <span className="chip h-6 text-[11px]">{category}</span>
           <span className="h-1 w-1 rounded-full bg-border" aria-hidden="true" />
           <span className="text-xs font-medium text-muted-foreground">{article.source}</span>
         </div>
@@ -78,8 +78,8 @@ export function NewsCard({ article, featured = false, priority = false }: NewsCa
             <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />
             {article.date} · {readTime}
           </span>
-          <span className="inline-flex items-center gap-1 font-semibold text-primary transition group-hover:gap-2">
-            Read story <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+          <span className="inline-flex items-center gap-1 font-semibold text-primary">
+            Read story <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" aria-hidden="true" />
           </span>
         </div>
       </div>

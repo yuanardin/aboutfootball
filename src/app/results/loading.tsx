@@ -14,7 +14,7 @@ export default function ResultsLoading() {
 
       <Skeleton className="mt-8 h-16 w-full rounded-xl sm:mt-10" />
       {Array.from({ length: 3 }).map((_, index) => (
-        <Skeleton key={index} className="mt-6 h-20 w-full rounded-lg" />
+        <Skeleton key={`results-skeleton-${index}`} className="mt-6 h-20 w-full rounded-lg" />
       ))}
     </div>
   );

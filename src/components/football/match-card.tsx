@@ -62,11 +62,12 @@ function TeamLogo({
   if (!src) {
     return (
       <span
+        role="img"
+        aria-label={alt}
         className={cn(
           'grid shrink-0 place-items-center rounded-full border border-border bg-secondary font-bold text-muted-foreground',
           size === 24 ? 'h-6 w-6 text-[10px]' : 'h-5 w-5 text-[9px]'
         )}
-        aria-label={alt}
       >
         {alt.trim().charAt(0).toUpperCase() || 'T'}
       </span>
@@ -120,14 +121,14 @@ export function MatchCard({ match, small = false }: { match: MatchResult; small?
           )}
         </div>
         <div className="flex flex-col items-center px-1 text-center">
-          <div className="font-headline text-lg font-bold tabular-nums tracking-tight">
-            <span className={match.homeTeam.score > match.awayTeam.score ? 'text-foreground' : 'text-muted-foreground'}>
+          <div className="font-headline text-lg font-bold tabular-nums tracking-tight" aria-label={`Score ${match.homeTeam.score} to ${match.awayTeam.score}`}>
+            <span aria-hidden="true" className={match.homeTeam.score > match.awayTeam.score ? 'font-bold text-foreground' : 'text-muted-foreground'}>
               {match.homeTeam.score}
             </span>
             <span className="px-1.5 text-muted-foreground/70" aria-hidden="true">
               –
             </span>
-            <span className={match.awayTeam.score > match.homeTeam.score ? 'text-foreground' : 'text-muted-foreground'}>
+            <span aria-hidden="true" className={match.awayTeam.score > match.homeTeam.score ? 'font-bold text-foreground' : 'text-muted-foreground'}>
               {match.awayTeam.score}
             </span>
           </div>

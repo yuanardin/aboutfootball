@@ -3,6 +3,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 export default function MatchDetailLoading() {
   return (
     <div className="page-shell min-w-0 py-10 sm:py-14">
+      <span className="sr-only" role="status">
+        Loading match details…
+      </span>
+      <div aria-hidden="true">
       <Skeleton className="h-5 w-28" />
 
       <div className="mt-6 flex flex-wrap items-center gap-2">
@@ -34,7 +38,7 @@ export default function MatchDetailLoading() {
           <Skeleton className="h-7 w-48" />
           <div className="mt-4 space-y-2.5">
             {Array.from({ length: 5 }).map((_, index) => (
-              <Skeleton key={index} className="h-5 w-full" />
+              <Skeleton key={`info-skeleton-${index}`} className="h-5 w-full" />
             ))}
           </div>
         </div>
@@ -42,10 +46,11 @@ export default function MatchDetailLoading() {
           <Skeleton className="h-7 w-32" />
           <div className="mt-4 space-y-2.5">
             {Array.from({ length: 3 }).map((_, index) => (
-              <Skeleton key={index} className="h-12 w-full rounded-lg" />
+              <Skeleton key={`side-skeleton-${index}`} className="h-12 w-full rounded-lg" />
             ))}
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

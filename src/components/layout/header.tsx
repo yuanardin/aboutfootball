@@ -95,7 +95,7 @@ export function Header() {
   );
 
   const MobileNav = () => (
-    <nav className="flex flex-col gap-1" aria-label="Primary navigation">
+    <nav className="flex flex-col gap-1" aria-label="Mobile navigation">
       {navLinks.map((link) => {
         const active = isActive(link.href, pathname);
         const Icon = link.icon;
@@ -144,9 +144,11 @@ export function Header() {
                 <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="rounded-full" aria-label="Open profile menu">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={user.photoURL ?? ''} alt={user.displayName ?? 'User'} />
+                    {user.photoURL ? (
+                      <AvatarImage src={user.photoURL} alt={user.displayName ?? 'User'} />
+                    ) : null}
                     <AvatarFallback>
-                      {user.displayName?.charAt(0) ?? user.email?.charAt(0).toUpperCase()}
+                      {(user.displayName?.charAt(0) ?? user.email?.charAt(0) ?? 'S').toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
@@ -201,7 +203,7 @@ export function Header() {
             </SheetTrigger>
             <SheetContent side="right" className="w-[300px] border-border bg-background p-5">
               <SheetTitle className="sr-only">Main navigation</SheetTitle>
-              <Link href="/" className="mb-8 flex items-center gap-2.5" aria-label="ScoreCast home">
+              <Link href="/" className="mb-8 flex items-center gap-2.5 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="ScoreCast home">
                 <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary/15 text-primary">
                   <Logo className="h-5 w-5" />
                 </span>
@@ -212,9 +214,11 @@ export function Header() {
                 <div className="mt-7 border-t border-border pt-5">
                   <div className="flex items-center gap-3 rounded-lg px-3 py-2">
                     <Avatar className="h-9 w-9">
-                      <AvatarImage src={user.photoURL ?? ''} alt={user.displayName ?? 'User'} />
+                      {user.photoURL ? (
+                        <AvatarImage src={user.photoURL} alt={user.displayName ?? 'User'} />
+                      ) : null}
                       <AvatarFallback>
-                        {user.displayName?.charAt(0) ?? user.email?.charAt(0).toUpperCase()}
+                        {(user.displayName?.charAt(0) ?? user.email?.charAt(0) ?? 'S').toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0">

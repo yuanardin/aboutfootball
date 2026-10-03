@@ -14,7 +14,7 @@ export default function StandingsLoading() {
 
       <div className="mt-10 space-y-2">
         {Array.from({ length: 10 }).map((_, index) => (
-          <Skeleton key={index} className="h-12 w-full rounded-lg" />
+          <Skeleton key={`standings-skeleton-${index}`} className="h-12 w-full rounded-lg" />
         ))}
       </div>
     </div>

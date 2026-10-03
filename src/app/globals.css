@@ -122,6 +122,6 @@
   }
 
   .link-arrow {
-    @apply inline-flex items-center gap-1 text-sm font-semibold text-primary transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring;
+    @apply inline-flex items-center gap-1 rounded-md text-sm font-semibold text-primary transition hover:gap-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
   }
 }

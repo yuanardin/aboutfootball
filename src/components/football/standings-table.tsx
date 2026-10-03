@@ -19,7 +19,9 @@ export function FormLetters({ form }: { form: Standing['form'] }) {
     >
       {form.map((result, index) => (
         <span
-          key={index}
+          key={`${result}-${index}`}
+          aria-hidden="true"
+          title={result === 'W' ? 'Won' : result === 'D' ? 'Draw' : 'Lost'}
           className={cn(
             'grid h-5 w-5 place-items-center rounded text-[10px] font-bold',
             result === 'W' && 'bg-success/15 text-success',
@@ -160,7 +162,7 @@ export function StandingsTable({
                     {standing.gd > 0 ? `+${standing.gd}` : standing.gd}
                   </td>
                   <td className="px-3 py-3 text-center">
-                    <span className="font-headline text-base font-bold tabular-nums text-primary">{standing.points}</span>
+                    <span className="text-sm font-bold tabular-nums text-foreground">{standing.points}</span>
                   </td>
                   <td className="px-4 py-3">
                     <FormLetters form={standing.form} />

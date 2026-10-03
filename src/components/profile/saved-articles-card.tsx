@@ -48,38 +48,62 @@ function SavedArticleRow({
 
   return (
     <div className="flex items-start gap-4 border-t border-border/60 py-4 first:border-t-0 first:pt-0 last:pb-0">
-      <Link
-        href={article.articleUrl ?? '#'}
-        target={isExternal ? '_blank' : undefined}
-        rel="noreferrer"
-        aria-label={article.title}
-        className="relative block h-16 w-24 shrink-0 overflow-hidden rounded-lg bg-secondary transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        {image ? (
-          <Image
-            src={image.imageUrl}
-            alt={image.description}
-            fill
-            sizes="96px"
-            className="object-cover"
-            data-ai-hint={'imageHint' in image ? image.imageHint : article.title}
-          />
-        ) : (
-          <span className="grid h-full w-full place-items-center text-muted-foreground">
-            <Newspaper className="h-5 w-5" aria-hidden="true" />
-          </span>
-        )}
-      </Link>
-
-      <div className="min-w-0 flex-1">
+      {isExternal ? (
         <Link
           href={article.articleUrl ?? '#'}
-          target={isExternal ? '_blank' : undefined}
+          target="_blank"
           rel="noreferrer"
-          className="line-clamp-2 text-card-title text-sm font-semibold leading-5 transition hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+          tabIndex={-1}
+          aria-hidden="true"
+          className="relative block h-16 w-24 shrink-0 overflow-hidden rounded-lg bg-secondary transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          {article.title}
+          {image ? (
+            <Image
+              src={image.imageUrl}
+              alt=""
+              fill
+              sizes="96px"
+              className="object-cover"
+              data-ai-hint={'imageHint' in image ? image.imageHint : article.title}
+            />
+          ) : (
+            <span className="grid h-full w-full place-items-center text-muted-foreground">
+              <Newspaper className="h-5 w-5" aria-hidden="true" />
+            </span>
+          )}
         </Link>
+      ) : (
+        <span className="relative block h-16 w-24 shrink-0 overflow-hidden rounded-lg bg-secondary">
+          {image ? (
+            <Image
+              src={image.imageUrl}
+              alt=""
+              fill
+              sizes="96px"
+              className="object-cover"
+              data-ai-hint={'imageHint' in image ? image.imageHint : article.title}
+            />
+          ) : (
+            <span className="grid h-full w-full place-items-center text-muted-foreground">
+              <Newspaper className="h-5 w-5" aria-hidden="true" />
+            </span>
+          )}
+        </span>
+      )}
+
+      <div className="min-w-0 flex-1">
+        {isExternal ? (
+          <Link
+            href={article.articleUrl ?? '#'}
+            target="_blank"
+            rel="noreferrer"
+            className="line-clamp-2 rounded-sm text-sm font-semibold leading-5 transition hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {article.title}
+          </Link>
+        ) : (
+          <p className="line-clamp-2 text-sm font-semibold leading-5">{article.title}</p>
+        )}
         <p className="mt-1 truncate text-xs text-muted-foreground">
           {article.source}
           {article.date ? ` · ${article.date}` : ''}

@@ -41,13 +41,13 @@ function FeaturedStory({ article }: { article: NewsArticle }) {
   const readTime = article.readTime ?? '4 min read';
 
   return (
-    <article className="group relative overflow-hidden rounded-2xl border border-border bg-card shadow-card transition duration-200 hover:border-primary/40 hover:shadow-lift md:grid md:grid-cols-[1.18fr_1fr]">
+    <article className="group relative overflow-hidden rounded-xl border border-border bg-card shadow-card transition duration-200 hover:border-primary/40 hover:shadow-lift md:grid md:grid-cols-[1.18fr_1fr]">
       {article.articleUrl && (
         <Link
           href={article.articleUrl}
           target="_blank"
           rel="noreferrer"
-          className="absolute inset-0 z-10 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+          className="absolute inset-0 z-10 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
           aria-label={article.title}
         />
       )}
@@ -65,11 +65,11 @@ function FeaturedStory({ article }: { article: NewsArticle }) {
         ) : (
           <div className="absolute inset-0 bg-secondary" />
         )}
-        <SaveArticleButton article={article} />
+        <SaveArticleButton article={article} className="z-20" />
       </div>
       <div className="flex flex-col p-6 sm:p-8">
         <div className="mb-3 flex items-center gap-2">
-          <span className="chip !h-6 !text-[11px]">{category}</span>
+          <span className="chip h-6 text-[11px]">{category}</span>
           <span className="h-1 w-1 rounded-full bg-border" aria-hidden="true" />
           <span className="text-xs font-medium text-muted-foreground">{article.source}</span>
         </div>
@@ -82,8 +82,8 @@ function FeaturedStory({ article }: { article: NewsArticle }) {
             <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />
             {article.date} · {readTime}
           </span>
-          <span className="inline-flex items-center gap-1 font-semibold text-primary transition group-hover:gap-2">
-            Read story <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+          <span className="inline-flex items-center gap-1 font-semibold text-primary">
+            Read story <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" aria-hidden="true" />
           </span>
         </div>
       </div>
@@ -113,13 +113,13 @@ export function NewsExplorer({ articles, source, provider, lastUpdated, error }:
   return (
     <div className="page-shell pb-20 pt-10 sm:pt-14">
       <header className="flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
-        <section className="max-w-2xl">
+        <div className="max-w-2xl">
           <p className="eyebrow mb-3">The latest</p>
           <h1 className="text-page-title">Football News</h1>
           <p className="mt-4 text-base leading-7 text-muted-foreground">
             Transfer talk, matchday coverage and analysis — filter by topic or search the newsroom.
           </p>
-        </section>
+        </div>
         <div className="flex flex-col items-start gap-2 sm:mb-1">
           <span className="chip w-fit shrink-0">
             <span
@@ -135,14 +135,13 @@ export function NewsExplorer({ articles, source, provider, lastUpdated, error }:
       {feedUnavailable ? (
         <section
           role="alert"
-          aria-label="News unavailable"
-          className="mt-10 flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/50 px-6 py-16 text-center"
+          className="mt-10 flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/50 px-6 py-16 text-center"
         >
-          <span className="grid h-12 w-12 place-items-center rounded-full bg-secondary text-muted-foreground">
+          <span aria-hidden="true" className="grid h-12 w-12 place-items-center rounded-full bg-secondary text-muted-foreground">
             <AlertTriangle className="h-5 w-5" aria-hidden="true" />
           </span>
-          <h2 className="text-card-title mt-4 font-headline text-xl font-bold">News unavailable right now</h2>
-          <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
+          <h2 className="mt-4 font-headline text-xl font-bold tracking-tight">News unavailable right now</h2>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">
             The live football news feed is not available right now{error ? ` (${error})` : ''}. Check
             back shortly — we only show real, up-to-the-minute football stories here.
           </p>
@@ -181,7 +180,8 @@ export function NewsExplorer({ articles, source, provider, lastUpdated, error }:
         </div>
 
         <div
-          className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0"
+          role="group"
+          className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1 pt-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0"
           aria-label="Filter news by category"
         >
           {categories.map((category) => (

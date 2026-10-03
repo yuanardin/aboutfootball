@@ -20,7 +20,8 @@ export function SectionHeader({ eyebrow, title, description, href, action = 'Vie
       {href && (
         <Link
           href={href}
-          className="link-arrow self-start sm:mb-0.5 sm:shrink-0 sm:self-auto"
+          aria-label={`${action}: ${title}`}
+          className="link-arrow shrink-0 self-start rounded-md focus-visible:ring-offset-2 sm:mb-0.5 sm:self-auto"
         >
           {action} <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>

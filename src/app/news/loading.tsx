@@ -7,7 +7,7 @@ export default function NewsLoading() {
       <div className="mt-8 h-12 w-full max-w-xl animate-pulse rounded-xl bg-secondary" />
       <div className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         {Array.from({ length: 6 }).map((_, index) => (
-          <div key={index} className="h-80 animate-pulse rounded-xl bg-secondary" />
+          <div key={`news-skeleton-${index}`} className="h-80 animate-pulse rounded-xl bg-secondary" />
         ))}
       </div>
     </div>

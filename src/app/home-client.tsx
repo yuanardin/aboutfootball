@@ -107,7 +107,7 @@ export function HomeClient({
       <section className="page-shell pt-10 sm:pt-16">
         <div className="grid items-center gap-10 lg:grid-cols-[1fr_1.2fr]">
           <div>
-            <span className="chip !h-8 !px-3 !text-xs !font-semibold !text-primary !border-primary/30 !bg-primary/10">
+            <span className="chip h-8 border-primary/30 bg-primary/10 px-3 text-xs font-semibold text-primary">
               Matchday HQ
             </span>
             <h1 className="text-display mt-5">
@@ -158,7 +158,7 @@ export function HomeClient({
                   <X className="h-4 w-4" aria-hidden="true" />
                 </button>
               ) : (
-                <span className="absolute right-4 top-1/2 hidden -translate-y-1/2 rounded border border-border bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground sm:block">
+                <span aria-hidden="true" className="absolute right-4 top-1/2 hidden -translate-y-1/2 rounded border border-border bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground sm:block">
                   Ctrl K
                 </span>
               )}
@@ -171,7 +171,8 @@ export function HomeClient({
             )}
           </div>
           <div
-            className="mt-3 -mx-4 flex gap-2 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none] sm:mx-0 sm:justify-center sm:px-0"
+            role="group"
+            className="mt-3 -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 pt-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:justify-center sm:overflow-visible sm:px-0"
             aria-label="Filter news by category"
           >
             {categories.map((category) => (
@@ -297,8 +298,8 @@ export function HomeClient({
               <span className="mb-3 grid h-11 w-11 place-items-center rounded-full bg-secondary text-muted-foreground">
                 <Radio className="h-5 w-5" aria-hidden="true" />
               </span>
-              <h3 className="text-card-title text-base">News feed unavailable</h3>
-              <p className="mt-1.5 max-w-sm text-sm leading-6 text-muted-foreground">
+              <h3 className="font-headline text-base font-bold tracking-tight">News feed unavailable</h3>
+              <p className="mx-auto mt-1.5 max-w-sm text-sm leading-6 text-muted-foreground">
                 The live football news feed is not available right now
                 {newsError ? ` (${newsError})` : ''}. Check back shortly — we only feature real,
                 up-to-the-minute football stories.

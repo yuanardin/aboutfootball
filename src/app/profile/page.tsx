@@ -208,7 +208,7 @@ export default function ProfilePage() {
       <div className="mx-auto w-full max-w-2xl min-w-0">
         <p className="eyebrow">Account</p>
         <h1 className="mt-2 max-w-full text-page-title [text-wrap:balance]">Your profile</h1>
-        <p className="mt-3 max-w-full text-sm leading-6 text-muted-foreground [overflow-wrap:anywhere] sm:text-base">
+        <p className="mt-3 max-w-full text-sm leading-6 text-muted-foreground sm:text-base">
           Manage how you show up on ScoreCast — your identity is stored securely with Firebase
           Authentication.
         </p>
@@ -217,14 +217,16 @@ export default function ProfilePage() {
           <CardContent className="p-0">
             <div className="flex w-full min-w-0 flex-col items-center gap-5 sm:flex-row sm:items-center">
               <Avatar className="h-20 w-20 shrink-0 ring-2 ring-primary/20">
-                <AvatarImage src={user.photoURL ?? ''} alt={user.displayName ?? 'Profile photo'} />
+                {user.photoURL ? (
+                  <AvatarImage src={user.photoURL} alt={user.displayName ?? 'Profile photo'} />
+                ) : null}
                 <AvatarFallback className="text-xl">{initials}</AvatarFallback>
               </Avatar>
               <div className="min-w-0 flex-1 text-center sm:text-left">
-                <p className="text-card-title min-w-0 truncate text-lg sm:text-xl">
+                <p className="min-w-0 truncate font-headline text-lg font-bold tracking-tight sm:text-xl" title={user.displayName ?? undefined}>
                   {user.displayName || 'ScoreCast member'}
                 </p>
-                <p className="mt-1 max-w-full truncate text-sm text-muted-foreground [overflow-wrap:anywhere]">
+                <p className="mt-1 max-w-full truncate text-sm text-muted-foreground" title={user.email ?? undefined}>
                   {user.email}
                 </p>
                 <div className="mt-3 flex items-center justify-center gap-2 sm:justify-start">

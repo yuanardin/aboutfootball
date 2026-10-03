@@ -119,7 +119,7 @@ export function MatchDetailView({ match }: { match: MatchDetail }) {
           )}
           {match.isLive && <LiveRefreshButton />}
         </div>
-        <h1 className="text-page-title mt-4 max-w-full [overflow-wrap:anywhere]">
+        <h1 className="text-page-title mt-4 max-w-full text-balance">
           {match.homeTeam.name} vs {match.awayTeam.name}
         </h1>
         <p className="mt-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
@@ -168,7 +168,7 @@ export function MatchDetailView({ match }: { match: MatchDetail }) {
           <div className="flex min-w-0 flex-col items-center gap-3 text-center">
             <TeamCrest crest={match.homeTeam.crest} alt={`${match.homeTeam.name} crest`} />
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold sm:text-base [overflow-wrap:anywhere]">
+              <p className="truncate text-sm font-semibold sm:text-base" title={match.homeTeam.name}>
                 {match.homeTeam.name}
               </p>
               <div className="mt-1.5 flex justify-center">
@@ -204,7 +204,7 @@ export function MatchDetailView({ match }: { match: MatchDetail }) {
           <div className="flex min-w-0 flex-col items-center gap-3 text-center">
             <TeamCrest crest={match.awayTeam.crest} alt={`${match.awayTeam.name} crest`} />
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold sm:text-base [overflow-wrap:anywhere]">
+              <p className="truncate text-sm font-semibold sm:text-base" title={match.awayTeam.name}>
                 {match.awayTeam.name}
               </p>
               <div className="mt-1.5 flex justify-center">
@@ -223,12 +223,12 @@ export function MatchDetailView({ match }: { match: MatchDetail }) {
           <dl className="mt-4 divide-y divide-border/60">
             <div className="grid grid-cols-[7rem_1fr] gap-3 py-2.5 text-sm sm:grid-cols-[9rem_1fr]">
               <dt className="text-muted-foreground">Competition</dt>
-              <dd className="min-w-0 font-medium [overflow-wrap:anywhere]">{match.competition}</dd>
+              <dd className="min-w-0 break-words font-medium">{match.competition}</dd>
             </div>
             <div className="grid grid-cols-[7rem_1fr] gap-3 py-2.5 text-sm sm:grid-cols-[9rem_1fr]">
               <dt className="text-muted-foreground">Kickoff (UTC)</dt>
               <dd className="min-w-0 font-medium">
-                <time dateTime={match.kickoff} className="[overflow-wrap:anywhere]">
+                <time dateTime={match.kickoff} className="break-words">
                   {kickoff.date}
                   {kickoff.time ? ` · ${kickoff.time}` : ''}
                 </time>
@@ -243,7 +243,7 @@ export function MatchDetailView({ match }: { match: MatchDetail }) {
             {match.stage && (
               <div className="grid grid-cols-[7rem_1fr] gap-3 py-2.5 text-sm sm:grid-cols-[9rem_1fr]">
                 <dt className="text-muted-foreground">Stage</dt>
-                <dd className="min-w-0 font-medium [overflow-wrap:anywhere]">
+                <dd className="min-w-0 break-words font-medium">
                   {humanizeStage(match.stage)}
                 </dd>
               </div>
@@ -251,7 +251,7 @@ export function MatchDetailView({ match }: { match: MatchDetail }) {
             {match.group && (
               <div className="grid grid-cols-[7rem_1fr] gap-3 py-2.5 text-sm sm:grid-cols-[9rem_1fr]">
                 <dt className="text-muted-foreground">Group</dt>
-                <dd className="min-w-0 font-medium [overflow-wrap:anywhere]">{match.group}</dd>
+                <dd className="min-w-0 break-words font-medium">{match.group}</dd>
               </div>
             )}
             {match.venue && (
@@ -259,21 +259,18 @@ export function MatchDetailView({ match }: { match: MatchDetail }) {
                 <dt className="text-muted-foreground">Venue</dt>
                 <dd className="flex min-w-0 items-start gap-1.5 font-medium">
                   <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-                  <span className="min-w-0 [overflow-wrap:anywhere]">{match.venue}</span>
+                  <span className="min-w-0 break-words">{match.venue}</span>
                 </dd>
               </div>
             )}
             <div className="grid grid-cols-[7rem_1fr] gap-3 py-2.5 text-sm sm:grid-cols-[9rem_1fr]">
               <dt className="text-muted-foreground">Status</dt>
-              <dd className="font-medium">
-                {match.statusLabel}
-                <span className="text-muted-foreground"> · {match.status}</span>
-              </dd>
+              <dd className="font-medium">{match.statusLabel}</dd>
             </div>
             <div className="grid grid-cols-[7rem_1fr] gap-3 py-2.5 text-sm sm:grid-cols-[9rem_1fr]">
               <dt className="text-muted-foreground">Updated</dt>
               <dd className="min-w-0 font-medium">
-                <time dateTime={match.lastUpdated} className="[overflow-wrap:anywhere]">
+                <time dateTime={match.lastUpdated} className="break-words">
                   {new Date(match.lastUpdated).toLocaleString('en-GB', { timeZone: 'UTC' })} UTC
                 </time>
               </dd>
@@ -299,10 +296,10 @@ export function MatchDetailView({ match }: { match: MatchDetail }) {
                   >
                     <GoalMinute minute={goal.minute} injuryTime={goal.injuryTime} />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold [overflow-wrap:anywhere]">
+                      <p className="truncate text-sm font-semibold">
                         {goal.scorer ?? 'Unknown scorer'}
                       </p>
-                      <p className="mt-0.5 truncate text-xs text-muted-foreground [overflow-wrap:anywhere]">
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
                         {[goal.teamName, goal.assist ? `assist ${goal.assist}` : null, goal.type]
                           .filter(Boolean)
                           .join(' · ')}
@@ -323,11 +320,11 @@ export function MatchDetailView({ match }: { match: MatchDetail }) {
                 Officials
               </h2>
               <ul className="mt-4 space-y-2.5">
-                {match.referees.map((referee) => (
-                  <li key={referee.name} className="flex min-w-0 items-start gap-2.5 text-sm">
+                {match.referees.map((referee, index) => (
+                  <li key={`${referee.name}-${index}`} className="flex min-w-0 items-start gap-2.5 text-sm">
                     <Flag className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
                     <div className="min-w-0">
-                      <p className="truncate font-medium [overflow-wrap:anywhere]">{referee.name}</p>
+                      <p className="truncate font-medium">{referee.name}</p>
                       <p className="mt-0.5 truncate text-xs text-muted-foreground">
                         {[referee.role, referee.nationality].filter(Boolean).join(' · ')}
                       </p>

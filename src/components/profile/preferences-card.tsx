@@ -262,7 +262,7 @@ export function PreferencesCard({ user }: { user: User }) {
 
             {/* Scope */}
             <div className="mt-6">
-              <p className="text-label">News priority</p>
+              <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">News priority</h3>
               <div className="mt-3 grid gap-2 sm:grid-cols-3">
                 {NEWS_SCOPE_OPTIONS.map((option) => (
                   <button
@@ -302,7 +302,7 @@ export function PreferencesCard({ user }: { user: User }) {
 
             {/* Leagues */}
             <div className="mt-6">
-              <p className="text-label">Preferred competitions</p>
+              <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Preferred competitions</h3>
               <p className="mt-1 text-xs text-muted-foreground">
                 Rank stories from these football competitions higher in News for You.
               </p>
@@ -321,7 +321,7 @@ export function PreferencesCard({ user }: { user: User }) {
 
             {/* Topics */}
             <div className="mt-6">
-              <p className="text-label">Content you care about</p>
+              <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Content you care about</h3>
               <p className="mt-1 text-xs text-muted-foreground">
                 Surface stories about these kinds of football news first.
               </p>

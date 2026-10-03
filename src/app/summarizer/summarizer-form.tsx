@@ -194,7 +194,7 @@ function FormSession({
           ref={resultRef}
           tabIndex={-1}
           aria-label="Summary result"
-          className="card-surface rounded-xl border border-primary/30 bg-primary/[0.04] p-5 outline-none sm:p-6"
+          className="card-surface rounded-xl border border-primary/30 bg-primary/[0.04] p-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-6"
         >
           <div className="flex items-center gap-2 text-primary">
             <Sparkles className="h-5 w-5" aria-hidden="true" />
@@ -205,17 +205,17 @@ function FormSession({
             <p className="mt-4 text-2xl font-bold leading-8 text-foreground">{state.title}</p>
           )}
 
-          <p className="mt-4 whitespace-pre-line text-base leading-7 text-foreground/90">
+          <p className="mt-4 break-words whitespace-pre-line text-base leading-7 text-foreground/90">
             {state.summary}
           </p>
 
           {state.keyTakeaways && state.keyTakeaways.length > 0 && (
             <div className="mt-6">
-              <h3 className="text-card-title">Key takeaways</h3>
+              <h3 className="font-headline text-base font-bold tracking-tight">Key takeaways</h3>
               <ul className="mt-3 space-y-2.5">
                 {state.keyTakeaways.map((item, index) => (
                   <li
-                    key={index}
+                    key={`takeaway-${index}-${item.slice(0, 24)}`}
                     className="flex items-start gap-2.5 text-sm leading-6 text-foreground/90"
                   >
                     <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />

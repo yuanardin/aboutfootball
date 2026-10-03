@@ -13,13 +13,13 @@ export function HeroStory({ article }: { article: NewsArticle }) {
   const category = article.category ?? 'Football';
 
   return (
-    <article className="group relative overflow-hidden rounded-2xl border border-border bg-card shadow-lift">
+    <article className="group relative overflow-hidden rounded-xl border border-border bg-card shadow-lift">
       {article.articleUrl && (
         <Link
           href={article.articleUrl}
           target="_blank"
           rel="noreferrer"
-          className="absolute inset-0 z-20 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          className="absolute inset-0 z-20 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           aria-label={article.title}
         />
       )}
@@ -58,8 +58,8 @@ export function HeroStory({ article }: { article: NewsArticle }) {
               <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />
               {article.date} · {article.readTime ?? '4 min read'}
             </span>
-            <span className="inline-flex items-center gap-1 text-sm font-semibold text-primary transition group-hover:gap-2">
-              Read story <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+            <span className="inline-flex items-center gap-1 text-sm font-semibold text-primary">
+              Read story <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" aria-hidden="true" />
             </span>
           </div>
         </div>
