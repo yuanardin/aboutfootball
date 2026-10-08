@@ -7,6 +7,7 @@ import {
   fetchMatchDetail,
   fetchStandings,
   fetchTeamMatches,
+  liveFootballDataEnabled,
 } from './provider';
 import type {
   FootballDataMatch,
@@ -39,7 +40,8 @@ const RESULTS_CACHE_TTL_MS = 5 * 60 * 1000;
 const STANDINGS_CACHE_TTL_MS = 10 * 60 * 1000;
 const TEAMS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
-const NOT_CONFIGURED_MESSAGE = 'The football data provider is not configured on the server.';
+const NOT_CONFIGURED_MESSAGE =
+  'The football data provider is disabled or not configured on the server.';
 const RATE_LIMIT_MESSAGE = 'The live football data provider rate limit was reached. Please try again shortly.';
 
 // Cache keys are per competition so switching leagues never serves another league's table.
@@ -81,7 +83,7 @@ function staleOrUnavailable<T extends WithMeta>(
 }
 
 export function footballDataConfigured(): boolean {
-  return Boolean(process.env.FOOTBALL_DATA_API_KEY);
+  return liveFootballDataEnabled() && Boolean(process.env.FOOTBALL_DATA_API_KEY);
 }
 
 function unavailableMeta(message: string, code: CompetitionCode): FootballDataMeta {

@@ -29,7 +29,21 @@ export class FootballDataProviderError extends Error {
   }
 }
 
+export function liveFootballDataEnabled(): boolean {
+  const value = process.env.LIVE_FOOTBALL_DATA_ENABLED;
+  if (value === undefined) return true;
+  return !['0', 'false', 'off', 'no'].includes(value.trim().toLowerCase());
+}
+
 function apiToken(): string {
+  if (!liveFootballDataEnabled()) {
+    throw new FootballDataProviderError(
+      null,
+      'config',
+      'LIVE_FOOTBALL_DATA_ENABLED is false, so the live football data provider is turned off.'
+    );
+  }
+
   const token = process.env.FOOTBALL_DATA_API_KEY;
   if (!token) {
     throw new FootballDataProviderError(

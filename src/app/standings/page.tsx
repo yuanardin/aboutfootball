@@ -173,8 +173,11 @@ export default async function StandingsPage({ searchParams }: StandingsPageProps
         {!configured && (
           <p className="mt-6 flex items-start gap-2 text-sm leading-6 text-muted-foreground">
             <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-            <span>Set FOOTBALL_DATA_API_KEY in your environment to enable live data.</span>
-          </p>
+          <span>
+            Live football data is disabled. Set LIVE_FOOTBALL_DATA_ENABLED=true and
+            FOOTBALL_DATA_API_KEY in your environment to enable it.
+          </span>
+        </p>
         )}
       </div>
     );
@@ -300,7 +303,10 @@ export default async function StandingsPage({ searchParams }: StandingsPageProps
       {!configured && (
         <p className="mt-6 flex items-start gap-2 text-sm leading-6 text-muted-foreground">
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-          <span>Set FOOTBALL_DATA_API_KEY in your environment to enable live data.</span>
+          <span>
+            Live football data is disabled. Set LIVE_FOOTBALL_DATA_ENABLED=true and
+            FOOTBALL_DATA_API_KEY in your environment to enable it.
+          </span>
         </p>
       )}
     </div>
