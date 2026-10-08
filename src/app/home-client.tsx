@@ -228,12 +228,26 @@ export function HomeClient({
                 description={resultsError}
                 onRetry={() => router.refresh()}
               />
-            ) : (
+            ) : matches.length > 0 && resultsLive ? (
               <div className="space-y-2.5">
                 {matches.slice(0, 3).map((match) => (
                   <MatchCard key={match.id} match={match} />
                 ))}
               </div>
+            ) : !resultsLive ? (
+              <ErrorState
+                title="Results unavailable"
+                description={
+                  resultsMeta?.error ??
+                  'Live results are not available right now. Please try again shortly.'
+                }
+                onRetry={() => router.refresh()}
+              />
+            ) : (
+              <EmptyState
+                title="No results yet"
+                description="There are no completed matches on the latest matchday yet. Check back after the weekend."
+              />
             )}
             <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
               <Radio className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
