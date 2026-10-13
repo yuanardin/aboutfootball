@@ -9,6 +9,7 @@
  */
 
 import {ai} from '@/ai/genkit';
+import {runWithModelRetry} from '@/ai/summarizer-retry';
 import {z} from 'genkit';
 
 const SummarizeFootballNewsInputSchema = z.object({
@@ -146,10 +147,15 @@ const summarizeFootballNewsFlow = ai.defineFlow(
   },
   async input => {
     const articleContent = await fetchArticleContent(input.articleUrl);
-    const {output} = await summarizeNewsArticlePrompt({
-      articleUrl: input.articleUrl,
-      articleContent,
-    });
+    // One bounded retry for transient 503/overload only — the SDK performs
+    // no automatic retry, so this single app-level retry cannot duplicate.
+    // Invalid URLs never reach here (flow inputSchema rejects them first).
+    const {output} = await runWithModelRetry(() =>
+      summarizeNewsArticlePrompt({
+        articleUrl: input.articleUrl,
+        articleContent,
+      })
+    );
     return output!;
   }
 );

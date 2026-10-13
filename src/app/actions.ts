@@ -1,6 +1,7 @@
 'use server';
 
 import { summarizeFootballNews } from '@/ai/flows/summarize-football-news';
+import { toSummarizerUserMessage } from '@/ai/summarizer-retry';
 import { getNewsForTeam, type TeamNewsResult, type NewsRankingPreferences } from '@/lib/news/service';
 import { getCompetitionTeams, getStandings, getTeamMatches } from '@/lib/football-data/service';
 import type { TeamMatchesResult } from '@/lib/football-data/service';
@@ -175,8 +176,12 @@ export async function handleSummarize(prevState: FormState, formData: FormData):
         keyTakeaways: result.keyTakeaways ?? [],
       };
     } catch (error) {
+      // Server log only — the raw error can contain request details and must
+      // never reach the client. The UI receives a friendly, non-technical
+      // message: a "busy, try again" note for transient overload, the
+      // existing generic message otherwise. No summary is fabricated.
       console.error(error);
-      return { message: "An error occurred while summarizing the article. The AI model might be unavailable." };
+      return { message: toSummarizerUserMessage(error) };
     }
   } catch (error) {
     if (error instanceof ZodError) {
