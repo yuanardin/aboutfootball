@@ -2,7 +2,7 @@
 
 import { summarizeFootballNews } from '@/ai/flows/summarize-football-news';
 import { getNewsForTeam, type TeamNewsResult, type NewsRankingPreferences } from '@/lib/news/service';
-import { getAllStandings, getCompetitionTeams, getStandings, getTeamMatches } from '@/lib/football-data/service';
+import { getCompetitionTeams, getStandings, getTeamMatches } from '@/lib/football-data/service';
 import type { TeamMatchesResult } from '@/lib/football-data/service';
 import {
   DEFAULT_COMPETITION,
@@ -101,29 +101,21 @@ export async function getStandingsForTeamAction(
 ): Promise<StandingsActionResult> {
   if (competitionCode) return getStandingsAction(competitionCode);
 
-  const overview = await getAllStandings();
-  const normalizeTeamName = (value: string) =>
-    value
-      .toLowerCase()
-      .replace(/\b(fc|cf|afc)\b/g, '')
-      .replace(/[^a-z0-9]+/g, ' ')
-      .trim();
-  const normalizedName = normalizeTeamName(teamName);
-  const matchingEntry = overview.entries.find((entry) =>
-    entry.payload.standings.some(
-      (standing) => normalizeTeamName(standing.team.name) === normalizedName
-    )
-  );
-
-  if (!matchingEntry) {
-    return {
-      standings: [],
-      meta: null,
-      error: overview.meta.error ?? 'The team is not present in the available league tables.',
-    };
-  }
-
-  return getStandingsAction(matchingEntry.code);
+  // Legacy favorites saved before competition tracking carry no
+  // competitionCode, so the competition cannot be known without fetching
+  // every league table (six upstream requests on a cold cache for one widget
+  // — the old behavior). There is no single-request lookup from team name to
+  // competition, and guessing a league would risk showing the wrong table, so
+  // the honest fallback is zero upstream requests plus an actionable error:
+  // re-selecting the team in /profile stores its competition going forward.
+  // No position is invented.
+  void teamName;
+  return {
+    standings: [],
+    meta: null,
+    error:
+      'Your favorite team was saved before league tracking was added. Re-select it on your profile to see its league position.',
+  };
 }
 
 export async function getNewsForTeamAction(

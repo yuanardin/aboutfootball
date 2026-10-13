@@ -4,11 +4,13 @@
 // unit-testable with node:test and reusable anywhere.
 //
 // Why this exists: the football-data.org free tier allows roughly ten requests
-// per minute. Firing all six competition reads simultaneously on a cold cache
-// is the fastest way to collect 429s, and every 429 is then retried with
-// backoff — amplifying the burst. Running bulk reads through a small pool
-// (with the existing per-key TTL cache in front) keeps upstream pressure low
-// while cached competitions still resolve instantly.
+// per minute per token. Firing all six competition reads simultaneously on a
+// cold cache is the fastest way to collect 429s, so bulk reads run through a
+// small pool (with the existing per-key TTL cache in front). The provider
+// never retries a 429 — the first one arms the shared in-process cooldown gate
+// (see football-data/rate-limit.ts) and the remaining competitions serve
+// stale/last-good data instead of burning more quota — while cached
+// competitions still resolve instantly.
 export async function mapWithConcurrency<T, R>(
   items: readonly T[],
   limit: number,

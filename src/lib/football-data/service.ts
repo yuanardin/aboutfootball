@@ -1,6 +1,10 @@
 ﻿import 'server-only';
 import { cachedWithTtl } from './cache';
 import {
+  applyRateLimitCooldown,
+  isRateLimited,
+} from './rate-limit';
+import {
   FootballDataProviderError,
   fetchCompetitionTeams,
   fetchFinishedMatches,
@@ -49,13 +53,18 @@ const resultsCacheKey = (code: CompetitionCode) => `football-data:${code}:matche
 const standingsCacheKey = (code: CompetitionCode) => `football-data:${code}:standings`;
 const teamsCacheKey = (code: CompetitionCode) => `football-data:${code}:teams`;
 
-// football-data.org's free tier allows roughly ten requests per minute, so a burst of
-// multi-competition requests is expected to hit 429. Two guards keep that honest and cheap:
-// a cooldown gate that stops burning quota while the provider is throttling us, and a
-// last-known-good copy so a throttled request can still show real (older) API data instead
-// of an empty page. Invented data is never substituted.
-const RATE_LIMIT_COOLDOWN_MS = 60_000;
-const rateLimitGate = new Map<string, number>();
+// football-data.org's free tier allows roughly ten requests per minute per API
+// token, so a burst of multi-competition requests is expected to hit 429. Two
+// guards keep that honest and cheap: a SINGLE shared cooldown gate that stops
+// every football-data.org read in this process while the provider is
+// throttling us (per-token quota, so a per-competition gate would keep burning
+// quota), and a last-known-good copy so a throttled request can still show
+// real (older) API data instead of an empty page. Invented data is never
+// substituted.
+//
+// Scope honesty: this gate is module memory, so it is shared across all
+// requests served by ONE Node process (one serverless instance) — it is not a
+// cross-instance global. See rate-limit.ts.
 const lastGood = new Map<string, { value: unknown; storedAt: number }>();
 
 type WithMeta = { meta: FootballDataMeta };
@@ -280,9 +289,13 @@ function mapMatch(match: FootballDataMatch): MatchResult {
   };
 }
 
-// Wraps one live provider read with caching, a rate-limit cooldown and a last-known-good
-// fallback. `scope` is only used for log/error wording so one implementation serves every
-// competition without duplicating logic per league.
+// Wraps one live provider read with caching, the shared rate-limit gate and a
+// last-known-good fallback. `scope` is only used for log/error wording so one
+// implementation serves every competition without duplicating logic per league.
+// The provider itself never retries: a 429 arms the shared gate (from the
+// response's Retry-After / X-RequestCounter-Reset headers, else a conservative
+// fallback) and every later read in this process serves stale/last-good data
+// until the gate lifts — no request touches the network while gated.
 async function loadLive<T extends WithMeta>(options: {
   key: string;
   ttlMs: number;
@@ -297,14 +310,16 @@ async function loadLive<T extends WithMeta>(options: {
     return build(competition, NOT_CONFIGURED_MESSAGE);
   }
 
-  const resumeAt = rateLimitGate.get(key) ?? 0;
-  if (Date.now() < resumeAt) {
+  if (isRateLimited()) {
     return staleOrUnavailable(key, RATE_LIMIT_MESSAGE, build, competition);
   }
 
+  // NOTE: a later upstream success deliberately does NOT lift the gate early.
+  // The only requests that can still succeed after a 429 are ones that passed
+  // the gate check before it armed — stale evidence, not proof of recovered
+  // quota. The gate always runs its full header-derived (or fallback) course.
   try {
     const value = (await cachedWithTtl(key, ttlMs, load)) as T;
-    rateLimitGate.delete(key);
     if (value.meta.source === 'live') {
       return rememberSuccess(key, value);
     }
@@ -312,7 +327,7 @@ async function loadLive<T extends WithMeta>(options: {
   } catch (error) {
     logFailure(error, scope);
     if (error instanceof FootballDataProviderError && error.kind === 'rate-limit') {
-      rateLimitGate.set(key, Date.now() + RATE_LIMIT_COOLDOWN_MS);
+      applyRateLimitCooldown(error.rateLimitCooldownMs);
       return staleOrUnavailable(key, RATE_LIMIT_MESSAGE, build, competition);
     }
     return staleOrUnavailable(
@@ -514,7 +529,7 @@ export async function getCompetitionTeams(
 
   const key = teamsCacheKey(competitionCode);
 
-  if ((rateLimitGate.get(key) ?? 0) > Date.now()) {
+  if (isRateLimited()) {
     const previous = lastGood.get(key);
     if (previous) {
       return { teams: previous.value as FootballDataTeam[], error: null };
@@ -527,12 +542,14 @@ export async function getCompetitionTeams(
       const response = await fetchCompetitionTeams(competitionCode);
       return [...response.teams].sort((a, b) => a.name.localeCompare(b.name));
     });
-    rateLimitGate.delete(key);
+    // Remember every success as last-known-good so a later throttled read can
+    // still serve the real club list instead of an empty page.
+    rememberSuccess(key, teams);
     return { teams, error: null };
   } catch (error) {
     logFailure(error, `teams ${competitionCode}`);
     if (error instanceof FootballDataProviderError && error.kind === 'rate-limit') {
-      rateLimitGate.set(key, Date.now() + RATE_LIMIT_COOLDOWN_MS);
+      applyRateLimitCooldown(error.rateLimitCooldownMs);
     }
     const previous = lastGood.get(key);
     if (previous) {
@@ -606,12 +623,20 @@ async function loadTeamMatchesFromApi(teamId: number): Promise<TeamMatchesResult
   const existing = teamMatchesCache.get(key);
 
   try {
-    const [upcomingResult, finishedResult] = await Promise.all([
-      fetchTeamMatches(teamId, { status: 'SCHEDULED,TIMED,IN_PLAY,PAUSED' }),
-      fetchTeamMatches(teamId, { status: 'FINISHED', limit: '1' }),
-    ]);
+    // One request, not two: the v4 /teams/{id}/matches endpoint accepts a
+    // comma-separated status list (the same mechanism this code already relied
+    // on for SCHEDULED,TIMED,IN_PLAY,PAUSED), so FINISHED rides along in the
+    // same call. Selection below mirrors the old two-request semantics
+    // exactly: live = IN_PLAY/PAUSED, upcoming = earliest future scheduled
+    // match, previous = latest FINISHED match. Client-side sorting is kept so
+    // nothing depends on provider ordering; the old `limit: '1'` finished
+    // query is replaced by taking the latest FINISHED row ourselves, which is
+    // at least as correct.
+    const response = await fetchTeamMatches(teamId, {
+      status: 'SCHEDULED,TIMED,IN_PLAY,PAUSED,FINISHED',
+    });
 
-    const upcomingMatches = [...upcomingResult.matches].sort(
+    const upcomingMatches = [...response.matches].sort(
       (a, b) => Date.parse(a.utcDate) - Date.parse(b.utcDate)
     );
 
@@ -621,9 +646,9 @@ async function loadTeamMatchesFromApi(teamId: number): Promise<TeamMatchesResult
       (match) => !isLiveMatchStatus(match.status) && Date.parse(match.utcDate) > Date.now()
     );
 
-    const lastMatch = [...finishedResult.matches].sort(
-      (a, b) => Date.parse(b.utcDate) - Date.parse(a.utcDate)
-    )[0];
+    const lastMatch = [...response.matches]
+      .filter((match) => match.status === 'FINISHED')
+      .sort((a, b) => Date.parse(b.utcDate) - Date.parse(a.utcDate))[0];
 
     const value: TeamMatchesResult = {
       upcoming: nextMatch ? toTeamMatchDto(nextMatch) : null,
@@ -642,6 +667,9 @@ async function loadTeamMatchesFromApi(teamId: number): Promise<TeamMatchesResult
     return value;
   } catch (error) {
     logFailure(error, `team ${teamId} matches`);
+    if (error instanceof FootballDataProviderError && error.kind === 'rate-limit') {
+      applyRateLimitCooldown(error.rateLimitCooldownMs);
+    }
     if (existing) {
       return {
         ...existing.value,
@@ -681,6 +709,26 @@ export async function getTeamMatches(teamId: number): Promise<TeamMatchesResult>
   const inFlight = teamMatchesInFlight.get(key);
   if (inFlight) {
     return inFlight;
+  }
+
+  // The shared gate covers team matches too: while another endpoint's 429 has
+  // armed it, serve the expired entry as stale (or an honest error) instead of
+  // spending quota. Fresh TTL hits above are always served — they cost nothing.
+  if (isRateLimited()) {
+    if (existing) {
+      return {
+        ...existing.value,
+        error: 'Live updates paused — showing last known match data.',
+        stale: true,
+      };
+    }
+    return {
+      upcoming: null,
+      previous: null,
+      live: null,
+      error: 'Live updates paused — the provider is rate limiting requests.',
+      stale: false,
+    };
   }
 
   const pending = loadTeamMatchesFromApi(teamId);

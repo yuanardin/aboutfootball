@@ -1,4 +1,5 @@
 import 'server-only';
+import { parseRateLimitCooldownMs } from './rate-limit';
 import type {
   FootballDataMatchDetailResponse,
   FootballDataMatchesResponse,
@@ -10,11 +11,12 @@ import type { CompetitionCode } from './competitions';
 
 const FOOTBALL_DATA_BASE_URL = 'https://api.football-data.org/v4';
 const REQUEST_TIMEOUT_MS = 15_000;
-// The free tier allows a small number of requests per minute. When several competitions
-// are requested at once a 429 is expected, so a 429 is retried with a short backoff
-// instead of being surfaced as a permanent error.
-const RATE_LIMIT_RETRY_DELAYS_MS = [600, 1_500, 3_000];
-const RATE_LIMIT_MAX_ATTEMPTS = RATE_LIMIT_RETRY_DELAYS_MS.length + 1;
+// The free tier allows ~10 requests/minute per API token. A 429 therefore
+// means the whole token quota is exhausted — retrying the same request would
+// only burn more quota, so every request is attempted EXACTLY ONCE. The
+// service layer owns the shared in-process cooldown gate (armed from the
+// 429's Retry-After / X-RequestCounter-Reset headers, see rate-limit.ts) and
+// serves stale/last-known-good data while it is armed. No retry storm.
 
 export type FootballDataFailureKind = 'config' | 'http' | 'network' | 'timeout' | 'rate-limit';
 
@@ -22,7 +24,10 @@ export class FootballDataProviderError extends Error {
   constructor(
     public readonly status: number | null,
     public readonly kind: FootballDataFailureKind,
-    message: string
+    message: string,
+    // Milliseconds the caller should stay quiet, derived from the 429
+    // response headers. Null for every non-rate-limit failure.
+    public readonly rateLimitCooldownMs: number | null = null
   ) {
     super(message);
     this.name = 'FootballDataProviderError';
@@ -55,11 +60,7 @@ function apiToken(): string {
   return token;
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function attemptRequest<T>(path: string, query: Record<string, string>): Promise<T> {
+async function apiRequest<T>(path: string, query: Record<string, string> = {}): Promise<T> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
@@ -81,7 +82,8 @@ async function attemptRequest<T>(path: string, query: Record<string, string>): P
         throw new FootballDataProviderError(
           response.status,
           'rate-limit',
-          `football-data.org rate limit reached for ${path}`
+          `football-data.org rate limit reached for ${path}`,
+          parseRateLimitCooldownMs(response.headers)
         );
       }
       throw new FootballDataProviderError(
@@ -111,24 +113,6 @@ async function attemptRequest<T>(path: string, query: Record<string, string>): P
   } finally {
     clearTimeout(timeout);
   }
-}
-
-async function apiRequest<T>(path: string, query: Record<string, string> = {}): Promise<T> {
-  for (let index = 0; index < RATE_LIMIT_MAX_ATTEMPTS; index += 1) {
-    try {
-      return await attemptRequest<T>(path, query);
-    } catch (error) {
-      const isRateLimit =
-        error instanceof FootballDataProviderError && error.kind === 'rate-limit';
-      if (!isRateLimit || index === RATE_LIMIT_MAX_ATTEMPTS - 1) {
-        throw error;
-      }
-      await sleep(RATE_LIMIT_RETRY_DELAYS_MS[index]);
-    }
-  }
-
-  // Unreachable: the loop either returns or throws.
-  throw new FootballDataProviderError(429, 'rate-limit', `football-data.org rate limit for ${path}`);
 }
 
 export function fetchFinishedMatches(competitionCode: CompetitionCode): Promise<FootballDataMatchesResponse> {
