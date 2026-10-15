@@ -7,17 +7,37 @@ import { useAuth } from '../provider';
 
 export function useUser() {
   const auth = useAuth();
-  const [user, setUser] = useState<User | null>(auth.currentUser);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(null);
+  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
-      setLoading(false);
+    if (!auth) {
+      setUser(null);
+      setInitialized(true);
+      return;
+    }
+
+    const currentUser = auth.currentUser ?? null;
+    setUser(currentUser);
+    setInitialized(false);
+
+    const unsubscribe = onAuthStateChanged(auth, (next) => {
+      setUser(next);
+      setInitialized(true);
     });
 
     return () => unsubscribe();
   }, [auth]);
 
-  return { data: user, isLoading: loading };
+  const isLoading = Boolean(auth) && !initialized;
+  const isAuthenticated = Boolean(auth) && initialized && Boolean(user);
+  const isUnauthenticated = Boolean(auth) && initialized && !user;
+
+  return {
+    data: user,
+    isLoading,
+    isAuthenticated,
+    isUnauthenticated,
+    isReady: initialized,
+  };
 }

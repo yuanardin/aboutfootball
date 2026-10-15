@@ -1,0 +1,22 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Each user manages their own document at users/{uid}. It is only readable
+    // and writable by its owner (request.auth.uid == uid); other users cannot
+    // read or modify it. The favoriteTeam nested field, savedArticles array and
+    // preferences object are stored inside that document, so they all inherit
+    // the same owner-only scope.
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Match alerts live in their own owner-only subcollection. The parent
+    // users/{userId} match above does not cover subcollections, so they need
+    // their own rule mirroring the same ownership check. Deletes are allowed so
+    // a user can always clean up their own alerts.
+    match /users/{userId}/notifications/{notificationId} {
+      allow read, create, update, delete: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
