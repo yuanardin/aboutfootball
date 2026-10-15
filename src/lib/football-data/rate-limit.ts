@@ -1,7 +1,7 @@
 // Single in-process rate-limit gate shared by every football-data.org read.
 //
-// Client-safe: pure time/header math, no network/cache/server-only imports, so
-// it is unit-testable with node:test like async-pool.
+// Client-safe: pure time/header math plus safe logging, no network/cache/
+// server-only imports, so it is unit-testable with node:test like async-pool.
 //
 // Why one gate instead of one per competition: the free-tier quota (10
 // requests/minute) is enforced per API token, not per competition. A per-key
@@ -15,6 +15,8 @@
 // while sharing one token quota. A shared cross-instance cache (Redis/KV or
 // Firestore) is deliberately out of scope for this change — see the diagnosis
 // report for those options and their costs.
+
+import { logCooldownArmed } from './observe';
 
 export const RATE_LIMIT_FALLBACK_COOLDOWN_MS = 60_000;
 const MAX_COOLDOWN_MS = 5 * 60_000;
@@ -42,13 +44,15 @@ export function clearRateLimit(): void {
 // when the value is missing or invalid. Returns the new resume timestamp.
 export function applyRateLimitCooldown(
   cooldownMs: number | null | undefined,
-  now: number = Date.now()
+  now: number = Date.now(),
+  trigger = 'unknown'
 ): number {
   const safe =
     typeof cooldownMs === 'number' && Number.isFinite(cooldownMs) && cooldownMs > 0
       ? Math.min(cooldownMs, MAX_COOLDOWN_MS)
       : RATE_LIMIT_FALLBACK_COOLDOWN_MS;
   resumeAt = now + safe;
+  logCooldownArmed(safe, trigger);
   return resumeAt;
 }
 

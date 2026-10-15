@@ -1,4 +1,5 @@
 import 'server-only';
+import { logUpstreamError, logUpstreamResponse, parseQuotaSnapshot } from './observe';
 import { parseRateLimitCooldownMs } from './rate-limit';
 import type {
   FootballDataMatchDetailResponse,
@@ -78,6 +79,7 @@ async function apiRequest<T>(path: string, query: Record<string, string> = {}): 
     });
 
     if (!response.ok) {
+      logUpstreamResponse(path, response.status, parseQuotaSnapshot(response.headers));
       if (response.status === 429) {
         throw new FootballDataProviderError(
           response.status,
@@ -93,18 +95,22 @@ async function apiRequest<T>(path: string, query: Record<string, string> = {}): 
       );
     }
 
-    return (await response.json()) as T;
+    const body = (await response.json()) as T;
+    logUpstreamResponse(path, response.status, parseQuotaSnapshot(response.headers));
+    return body;
   } catch (error) {
     if (error instanceof FootballDataProviderError) {
       throw error;
     }
     if (controller.signal.aborted || (error as Error)?.name === 'AbortError') {
+      logUpstreamError(path, 'timeout');
       throw new FootballDataProviderError(
         null,
         'timeout',
         `football-data.org request timed out after ${REQUEST_TIMEOUT_MS}ms for ${path}`
       );
     }
+    logUpstreamError(path, 'network');
     throw new FootballDataProviderError(
       null,
       'network',

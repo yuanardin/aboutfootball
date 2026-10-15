@@ -1,14 +1,26 @@
 type CacheEntry<T> = { value: Promise<T>; expiresAt: number };
 
+export type CacheHooks = {
+  onHit?: () => void;
+  onMiss?: () => void;
+};
+
 const store = new Map<string, CacheEntry<unknown>>();
 
-export function cachedWithTtl<T>(key: string, ttlMs: number, loader: () => Promise<T>): Promise<T> {
+export function cachedWithTtl<T>(
+  key: string,
+  ttlMs: number,
+  loader: () => Promise<T>,
+  hooks?: CacheHooks
+): Promise<T> {
   const existing = store.get(key);
 
   if (existing && existing.expiresAt > Date.now()) {
+    hooks?.onHit?.();
     return existing.value as Promise<T>;
   }
 
+  hooks?.onMiss?.();
   const value = loader();
   store.set(key, { value, expiresAt: Date.now() + ttlMs });
 

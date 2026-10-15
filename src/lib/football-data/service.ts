@@ -4,6 +4,7 @@ import {
   applyRateLimitCooldown,
   isRateLimited,
 } from './rate-limit';
+import { logCacheHit, logCacheMiss } from './observe';
 import {
   FootballDataProviderError,
   fetchCompetitionTeams,
@@ -319,7 +320,10 @@ async function loadLive<T extends WithMeta>(options: {
   // the gate check before it armed — stale evidence, not proof of recovered
   // quota. The gate always runs its full header-derived (or fallback) course.
   try {
-    const value = (await cachedWithTtl(key, ttlMs, load)) as T;
+    const value = (await cachedWithTtl(key, ttlMs, load, {
+      onHit: () => logCacheHit(scope, key),
+      onMiss: () => logCacheMiss(scope, key),
+    })) as T;
     if (value.meta.source === 'live') {
       return rememberSuccess(key, value);
     }
@@ -327,7 +331,7 @@ async function loadLive<T extends WithMeta>(options: {
   } catch (error) {
     logFailure(error, scope);
     if (error instanceof FootballDataProviderError && error.kind === 'rate-limit') {
-      applyRateLimitCooldown(error.rateLimitCooldownMs);
+      applyRateLimitCooldown(error.rateLimitCooldownMs, Date.now(), `${scope}:${key}`);
       return staleOrUnavailable(key, RATE_LIMIT_MESSAGE, build, competition);
     }
     return staleOrUnavailable(
@@ -541,6 +545,9 @@ export async function getCompetitionTeams(
     const teams = await cachedWithTtl(key, TEAMS_CACHE_TTL_MS, async () => {
       const response = await fetchCompetitionTeams(competitionCode);
       return [...response.teams].sort((a, b) => a.name.localeCompare(b.name));
+    }, {
+      onHit: () => logCacheHit(`teams ${competitionCode}`, key),
+      onMiss: () => logCacheMiss(`teams ${competitionCode}`, key),
     });
     // Remember every success as last-known-good so a later throttled read can
     // still serve the real club list instead of an empty page.
@@ -549,7 +556,7 @@ export async function getCompetitionTeams(
   } catch (error) {
     logFailure(error, `teams ${competitionCode}`);
     if (error instanceof FootballDataProviderError && error.kind === 'rate-limit') {
-      applyRateLimitCooldown(error.rateLimitCooldownMs);
+      applyRateLimitCooldown(error.rateLimitCooldownMs, Date.now(), `teams:${key}`);
     }
     const previous = lastGood.get(key);
     if (previous) {
@@ -668,7 +675,7 @@ async function loadTeamMatchesFromApi(teamId: number): Promise<TeamMatchesResult
   } catch (error) {
     logFailure(error, `team ${teamId} matches`);
     if (error instanceof FootballDataProviderError && error.kind === 'rate-limit') {
-      applyRateLimitCooldown(error.rateLimitCooldownMs);
+      applyRateLimitCooldown(error.rateLimitCooldownMs, Date.now(), `team-matches:${teamId}`);
     }
     if (existing) {
       return {
@@ -693,6 +700,7 @@ export async function getTeamMatches(teamId: number): Promise<TeamMatchesResult>
   const existing = teamMatchesCache.get(key);
 
   if (existing && now - existing.storedAt < existing.ttlMs) {
+    logCacheHit('team-matches', key);
     return existing.value;
   }
 
@@ -732,6 +740,7 @@ export async function getTeamMatches(teamId: number): Promise<TeamMatchesResult>
   }
 
   const pending = loadTeamMatchesFromApi(teamId);
+  logCacheMiss('team-matches', key);
   teamMatchesInFlight.set(key, pending);
   try {
     return await pending;
@@ -876,6 +885,9 @@ export async function getMatchDetail(matchId: number): Promise<MatchDetailResult
     const match = await cachedWithTtl(key, MATCH_DETAIL_TTL_MS, async () => {
       const response = await fetchMatchDetail(matchId);
       return mapMatchDetail(response);
+    }, {
+      onHit: () => logCacheHit(`match ${matchId}`, key),
+      onMiss: () => logCacheMiss(`match ${matchId}`, key),
     });
     return { match, error: null, notFound: false };
   } catch (error) {
