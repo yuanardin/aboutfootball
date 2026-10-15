@@ -4,8 +4,8 @@ import { useUser } from './auth/use-user';
 
 function initializeFirebase() {
   if (!isFirebaseConfigured) {
-    throw new Error(
-      'Firebase is not configured. Copy .env.example to .env.local and fill in your Firebase values.'
+    console.warn(
+      'Firebase is not configured yet. Copy .env.example to .env.local and fill in your Firebase values.'
     );
   }
 

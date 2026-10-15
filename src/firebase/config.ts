@@ -10,9 +10,22 @@ const requiredEnvKeys = [
   'NEXT_PUBLIC_FIREBASE_APP_ID',
 ] as const;
 
-const missingEnvKeys = requiredEnvKeys.filter(
-  (key) => !process.env[key] || process.env[key]?.trim() === ''
-);
+export function getMissingFirebaseEnvKeys() {
+  return requiredEnvKeys.filter(
+    (key) => !process.env[key] || process.env[key]?.trim() === ''
+  );
+}
+
+const missingEnvKeys = getMissingFirebaseEnvKeys();
+
+if (missingEnvKeys.length) {
+  console.warn(
+    'Firebase environment check: missing keys ->',
+    missingEnvKeys
+  );
+} else {
+  console.log('Firebase environment check: missing keys -> none');
+}
 
 export const isFirebaseConfigured = missingEnvKeys.length === 0;
 
