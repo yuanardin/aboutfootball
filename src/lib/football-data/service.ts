@@ -1,6 +1,15 @@
 ﻿import 'server-only';
 import { cachedWithTtl } from './cache';
 import {
+  SHARED_REVALIDATE_SECONDS,
+  fetchViaSharedCache,
+  matchDetailSharedKey,
+  resultsSharedKey,
+  standingsSharedKey,
+  teamMatchesSharedKey,
+  teamsSharedKey,
+} from './shared-cache';
+import {
   applyRateLimitCooldown,
   isRateLimited,
 } from './rate-limit';
@@ -352,7 +361,12 @@ export async function getResults(
     scope: 'results',
     competition: competitionCode,
     load: async () => {
-      const response = await fetchFinishedMatches(competitionCode);
+      const response = await fetchViaSharedCache(
+        resultsSharedKey(competitionCode, 'FINISHED'),
+        SHARED_REVALIDATE_SECONDS.results,
+        () => fetchFinishedMatches(competitionCode),
+        { scope: 'results', cacheKey: resultsCacheKey(competitionCode) }
+      );
 
       const matches = [...response.matches]
         .sort((a, b) => Date.parse(b.utcDate) - Date.parse(a.utcDate))
@@ -388,7 +402,12 @@ export async function getStandings(
     scope: 'standings',
     competition: competitionCode,
     load: async () => {
-      const response = await fetchStandings(competitionCode);
+      const response = await fetchViaSharedCache(
+        standingsSharedKey(competitionCode),
+        SHARED_REVALIDATE_SECONDS.standings,
+        () => fetchStandings(competitionCode),
+        { scope: 'standings', cacheKey: standingsCacheKey(competitionCode) }
+      );
 
       // Prefer the overall table. Cup competitions can answer with several blocks, and
       // each one is preserved with its own stage/group label instead of being merged.
@@ -543,7 +562,12 @@ export async function getCompetitionTeams(
 
   try {
     const teams = await cachedWithTtl(key, TEAMS_CACHE_TTL_MS, async () => {
-      const response = await fetchCompetitionTeams(competitionCode);
+      const response = await fetchViaSharedCache(
+        teamsSharedKey(competitionCode),
+        SHARED_REVALIDATE_SECONDS.teams,
+        () => fetchCompetitionTeams(competitionCode),
+        { scope: `teams ${competitionCode}`, cacheKey: key }
+      );
       return [...response.teams].sort((a, b) => a.name.localeCompare(b.name));
     }, {
       onHit: () => logCacheHit(`teams ${competitionCode}`, key),
@@ -638,10 +662,18 @@ async function loadTeamMatchesFromApi(teamId: number): Promise<TeamMatchesResult
     // match, previous = latest FINISHED match. Client-side sorting is kept so
     // nothing depends on provider ordering; the old `limit: '1'` finished
     // query is replaced by taking the latest FINISHED row ourselves, which is
-    // at least as correct.
-    const response = await fetchTeamMatches(teamId, {
-      status: 'SCHEDULED,TIMED,IN_PLAY,PAUSED,FINISHED',
-    });
+    // at least as correct. The fetch itself goes through the shared (Data
+    // Cache) layer so every instance serves one warmed entry instead of each
+    // instance spending quota on the same team.
+    const response = await fetchViaSharedCache(
+      teamMatchesSharedKey(teamId),
+      SHARED_REVALIDATE_SECONDS.teamMatches,
+      () =>
+        fetchTeamMatches(teamId, {
+          status: 'SCHEDULED,TIMED,IN_PLAY,PAUSED,FINISHED',
+        }),
+      { scope: 'team-matches', cacheKey: key }
+    );
 
     const upcomingMatches = [...response.matches].sort(
       (a, b) => Date.parse(a.utcDate) - Date.parse(b.utcDate)
@@ -883,7 +915,12 @@ export async function getMatchDetail(matchId: number): Promise<MatchDetailResult
 
   try {
     const match = await cachedWithTtl(key, MATCH_DETAIL_TTL_MS, async () => {
-      const response = await fetchMatchDetail(matchId);
+      const response = await fetchViaSharedCache(
+        matchDetailSharedKey(matchId),
+        SHARED_REVALIDATE_SECONDS.matchDetail,
+        () => fetchMatchDetail(matchId),
+        { scope: `match ${matchId}`, cacheKey: key }
+      );
       return mapMatchDetail(response);
     }, {
       onHit: () => logCacheHit(`match ${matchId}`, key),
