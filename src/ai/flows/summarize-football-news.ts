@@ -3,17 +3,31 @@
  * @fileOverview This file defines a Genkit flow for summarizing football news articles.
  *
  * - summarizeFootballNews - A function that takes a news article URL, fetches the article
- *   content server-side, and returns a concise summary produced by the AI model.
+ *   content server-side through the SSRF-safe fetcher, and returns a concise summary
+ *   produced by the AI model.
  * - SummarizeFootballNewsInput - The input type for the summarizeFootballNews function.
  * - SummarizeFootballNewsOutput - The return type for the summarizeFootballNews function.
  */
 
 import {ai} from '@/ai/genkit';
 import {runWithModelRetry} from '@/ai/summarizer-retry';
+import {
+  MAX_ARTICLE_CHARS,
+  UnsafeArticleUrlError,
+  createDefaultArticleFetcherDeps,
+  fetchArticleText,
+} from '@/lib/security/safe-article-fetch';
 import {z} from 'genkit';
 
+// Bounded so a caller cannot push an unbounded string through validation.
+const MAX_ARTICLE_URL_LENGTH = 2_048;
+
 const SummarizeFootballNewsInputSchema = z.object({
-  articleUrl: z.string().url().describe('The URL of the football news article to summarize.'),
+  articleUrl: z
+    .string()
+    .url()
+    .max(MAX_ARTICLE_URL_LENGTH)
+    .describe('The URL of the football news article to summarize.'),
 });
 export type SummarizeFootballNewsInput = z.infer<typeof SummarizeFootballNewsInputSchema>;
 
@@ -30,83 +44,12 @@ const SummarizeFootballNewsOutputSchema = z.object({
 });
 export type SummarizeFootballNewsOutput = z.infer<typeof SummarizeFootballNewsOutputSchema>;
 
-/**
- * Fetches the article page and reduces the HTML to plain, readable text so the model
- * can summarize an arbitrary live article instead of guessing from a bare URL.
- */
-async function fetchArticleContent(articleUrl: string): Promise<string> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
-
-  try {
-    const response = await fetch(articleUrl, {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (compatible; ScoreCastNewsBot/1.0; +https://scorecast.app)',
-        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
-      },
-      signal: controller.signal,
-      redirect: 'follow',
-      cache: 'no-store',
-    });
-
-    if (!response.ok) {
-      return '';
-    }
-
-    const contentType = response.headers.get('content-type') ?? '';
-    if (!contentType.includes('text/html') && !contentType.includes('application/xhtml')) {
-      return '';
-    }
-
-    const html = await response.text();
-    return extractReadableText(html);
-  } catch {
-    return '';
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-function extractReadableText(html: string): string {
-  const removed = html
-    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<noscript[\s\S]*?<\/noscript>/gi, ' ')
-    .replace(/<svg[\s\S]*?<\/svg>/gi, ' ')
-    .replace(/<!--[\s\S]*?-->/g, ' ')
-    .replace(/<(script|style|nav|header|footer|aside|form|button)[^>]*>[\s\S]*?<\/\1>/gi, ' ');
-
-  const withoutTags = removed
-    // Turn block elements into line breaks so paragraphs survive tag stripping.
-    .replace(/(<\/?(p|div|li|h[1-6]|section|article|blockquote|tr)>)/gi, '\n$1')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<[^>]+>/g, ' ');
-
-  return decodeEntities(withoutTags)
-    .replace(/[ \t]+/g, ' ')
-    .replace(/\n\s*\n+/g, '\n\n')
-    .replace(/[ \t]+\n/g, '\n')
-    .trim()
-    .slice(0, 20000);
-}
-
-function decodeEntities(text: string): string {
-  const entities: Record<string, string> = {
-    '&nbsp;': ' ',
-    '&amp;': '&',
-    '&lt;': '<',
-    '&gt;': '>',
-    '&quot;': '"',
-    '&#39;': "'",
-    '&apos;': "'",
-    '&ndash;': '–',
-    '&mdash;': '—',
-    '&hellip;': '…',
-  };
-  return text.replace(/&[a-z]+;|&#\d+;/gi, match => entities[match.toLowerCase()] ?? match);
-}
+// Deterministic, non-AI result for an article we could not read (paywalled,
+// removed, unreachable, non-HTML, or oversized). Returning this without calling
+// the model keeps the user-visible outcome identical to the old "model writes a
+// note" path while removing a free Gemini-consumption vector for arbitrary URLs.
+const UNREADABLE_ARTICLE_SUMMARY =
+  'The article could not be read. It may be paywalled, removed, or unreachable.';
 
 const SummarizeFootballNewsPromptSchema = z.object({
   articleUrl: z.string().url().describe('The URL of the football news article to summarize.'),
@@ -114,7 +57,6 @@ const SummarizeFootballNewsPromptSchema = z.object({
     .string()
     .describe('The plain-text content of the article, or an empty string when it could not be fetched.'),
 });
-type SummarizeFootballNewsPromptInput = z.infer<typeof SummarizeFootballNewsPromptSchema>;
 
 export async function summarizeFootballNews(input: SummarizeFootballNewsInput): Promise<SummarizeFootballNewsOutput> {
   return summarizeFootballNewsFlow(input);
@@ -134,9 +76,7 @@ Article content:
 Analyze ONLY the article content above strands. From it, return:
 - "title": the article's headline, copied verbatim when it is visible in the content; otherwise an empty string.
 - "summary": the main points of the article in 3 to 5 concise sentences, written for a football fan.
-- "keyTakeaways": up to 3 short bullet-style takeaways as separate strings. Return an empty list when the article content is not accessible.
-
-If the article content is empty or not readable (for example the page is paywalled, removed, or unreachable), set "summary" to a short note explaining that the article could not be read, leave "title" empty, and return an empty list for "keyTakeaways".`,
+- "keyTakeaways": up to 3 short bullet-style takeaways as separate strings. Return an empty list when the article content is not accessible.`,
 });
 
 const summarizeFootballNewsFlow = ai.defineFlow(
@@ -146,10 +86,23 @@ const summarizeFootballNewsFlow = ai.defineFlow(
     outputSchema: SummarizeFootballNewsOutputSchema,
   },
   async input => {
-    const articleContent = await fetchArticleContent(input.articleUrl);
+    const outcome = await fetchArticleText(input.articleUrl, createDefaultArticleFetcherDeps());
+
+    // Unsafe/invalid targets surface as a typed error the caller maps to a
+    // friendly message. They never reach the model and are never retried.
+    if (outcome.status === 'blocked') {
+      throw new UnsafeArticleUrlError(outcome.reason);
+    }
+
+    // Nothing readable to summarize: skip the model entirely. No fallback ever
+    // re-fetches the URL, so validation cannot be bypassed.
+    if (outcome.status === 'unreadable') {
+      return { title: '', summary: UNREADABLE_ARTICLE_SUMMARY, keyTakeaways: [] };
+    }
+
+    const articleContent = outcome.text.slice(0, MAX_ARTICLE_CHARS);
     // One bounded retry for transient 503/overload only — the SDK performs
     // no automatic retry, so this single app-level retry cannot duplicate.
-    // Invalid URLs never reach here (flow inputSchema rejects them first).
     const {output} = await runWithModelRetry(() =>
       summarizeNewsArticlePrompt({
         articleUrl: input.articleUrl,

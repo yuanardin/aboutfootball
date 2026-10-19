@@ -1,7 +1,10 @@
 'use server';
 
+import { headers } from 'next/headers';
 import { summarizeFootballNews } from '@/ai/flows/summarize-football-news';
 import { toSummarizerUserMessage } from '@/ai/summarizer-retry';
+import { UnsafeArticleUrlError } from '@/lib/security/safe-article-fetch';
+import { summarizerThrottle } from '@/lib/security/summarizer-throttle';
 import { getNewsForTeam, type TeamNewsResult, type NewsRankingPreferences } from '@/lib/news/service';
 import { getCompetitionTeams, getStandings, getTeamMatches } from '@/lib/football-data/service';
 import type { TeamMatchesResult } from '@/lib/football-data/service';
@@ -18,8 +21,16 @@ import { z } from 'zod';
 import { ZodError } from 'zod';
 
 const schema = z.object({
-  articleUrl: z.string().url({ message: 'Please enter a valid URL.' }),
+  articleUrl: z
+    .string()
+    .max(2_048)
+    .url({ message: 'Please enter a valid URL.' }),
 });
+
+const SUMMARIZER_BLOCKED_MESSAGE =
+  'That link cannot be summarized because it points to a non-public or unsupported address. Please paste a public article URL.';
+const SUMMARIZER_THROTTLED_MESSAGE =
+  'Too many summarizer requests right now. Please wait a moment and try again.';
 
 export interface FormState {
   message: string;
@@ -167,6 +178,16 @@ export async function handleSummarize(prevState: FormState, formData: FormData):
   try {
     const validatedData = schema.parse(data);
 
+    // Best-effort per-instance guard (see summarizer-throttle.ts). Stops one
+    // client from hammering this instance; it is NOT a global Vercel limiter.
+    const requestHeaders = await headers();
+    const clientKey =
+      requestHeaders.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+    const decision = summarizerThrottle.acquire(clientKey);
+    if (!decision.allowed) {
+      return { message: SUMMARIZER_THROTTLED_MESSAGE };
+    }
+
     try {
       const result = await summarizeFootballNews({ articleUrl: validatedData.articleUrl });
       return {
@@ -176,12 +197,19 @@ export async function handleSummarize(prevState: FormState, formData: FormData):
         keyTakeaways: result.keyTakeaways ?? [],
       };
     } catch (error) {
+      if (error instanceof UnsafeArticleUrlError) {
+        // Log the reason class only — never the raw URL or any stack detail.
+        console.warn('[summarizer] rejected article URL:', error.reason);
+        return { message: SUMMARIZER_BLOCKED_MESSAGE };
+      }
       // Server log only — the raw error can contain request details and must
       // never reach the client. The UI receives a friendly, non-technical
       // message: a "busy, try again" note for transient overload, the
       // existing generic message otherwise. No summary is fabricated.
       console.error(error);
       return { message: toSummarizerUserMessage(error) };
+    } finally {
+      decision.release();
     }
   } catch (error) {
     if (error instanceof ZodError) {

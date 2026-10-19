@@ -186,7 +186,7 @@ export function FavoriteTeamCard({ user }: { user: User }) {
       setFavorite(saved);
       setPickerOpen(false);
       toast({ title: 'Team saved', description: `${team.shortName ?? team.name} is now your favorite team.` });
-    } catch (error: any) {
+    } catch (error) {
       toast({
         variant: 'destructive',
         title: 'Unable to save your team',
@@ -205,7 +205,7 @@ export function FavoriteTeamCard({ user }: { user: User }) {
       setFavorite(null);
       setTeamMatches(null);
       toast({ description: 'Your favorite team has been removed.' });
-    } catch (error: any) {
+    } catch (error) {
       toast({
         variant: 'destructive',
         title: 'Unable to remove your team',
