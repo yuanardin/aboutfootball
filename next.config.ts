@@ -14,6 +14,23 @@ const nextConfig: NextConfig = {
   // run explicitly via `npm run typecheck` and `npm run lint` (ESLint CLI), so
   // a broken build fails instead of silently shipping. Keep distDir as-is.
   distDir: process.env.NEXT_DIST_DIR ?? '.next',
+  // Firebase Google Auth uses signInWithPopup and checks window.closed while
+  // the provider window is open. Keep opener isolation for the rest of the
+  // app, but allow the two routes that initiate this popup flow to retain a
+  // usable opener relationship.
+  async headers() {
+    const popupAuthHeaders = [
+      {
+        key: 'Cross-Origin-Opener-Policy',
+        value: 'same-origin-allow-popups',
+      },
+    ];
+
+    return [
+      { source: '/login', headers: popupAuthHeaders },
+      { source: '/register', headers: popupAuthHeaders },
+    ];
+  },
   // Explicit image host allowlist. There is deliberately NO `**` wildcard:
   // an arbitrary-host entry turns /_next/image into an open image proxy and
   // widens the blast radius of Next.js image-optimizer advisories. News images
