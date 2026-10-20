@@ -78,8 +78,8 @@ export default function LoginPage() {
       await signInWithPopup(auth, provider);
       toast({ title: 'Success', description: "You've successfully signed in." });
       router.push('/');
-    } catch (error: any) {
-      const code = error?.code;
+    } catch (error) {
+      const code = (error as { code?: string } | null)?.code;
       if (code !== 'auth/popup-closed-by-user' && code !== 'auth/cancelled-popup-request') {
         toast({ variant: 'destructive', title: 'Sign in failed', description: getFirebaseErrorMessage(code) });
       }
@@ -109,8 +109,8 @@ export default function LoginPage() {
       await signInWithEmailAndPassword(auth, email.trim(), password);
       toast({ title: 'Success', description: "You've successfully signed in." });
       router.push('/');
-    } catch (error: any) {
-      setFormError(getFirebaseErrorMessage(error?.code));
+    } catch (error) {
+      setFormError(getFirebaseErrorMessage((error as { code?: string } | null)?.code));
     } finally {
       setSubmitting(false);
     }

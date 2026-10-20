@@ -96,8 +96,8 @@ function TeamCrest({ crest, alt, size = 24 }: { crest: string | null; alt: strin
       </span>
     );
   }
-  // eslint-disable-next-line @next/next/no-img-element
   return (
+    // eslint-disable-next-line @next/next/no-img-element
     <img
       src={crest}
       alt={alt}

@@ -176,8 +176,8 @@ export default function ProfilePage() {
     try {
       await updateProfile(user, { displayName: name, photoURL: photo || null });
       toast({ title: 'Profile updated', description: 'Your changes have been saved.' });
-    } catch (error: any) {
-      const message = getFirebaseErrorMessage(error?.code);
+    } catch (error) {
+      const message = getFirebaseErrorMessage((error as { code?: string } | null)?.code);
       setFormError(message);
       toast({ variant: 'destructive', title: 'Update failed', description: message });
     } finally {
@@ -192,11 +192,11 @@ export default function ProfilePage() {
       await signOut(auth);
       toast({ description: 'You have been signed out.' });
       router.push('/');
-    } catch (error: any) {
+    } catch (error) {
       toast({
         variant: 'destructive',
         title: 'Unable to sign out',
-        description: getFirebaseErrorMessage(error?.code),
+        description: getFirebaseErrorMessage((error as { code?: string } | null)?.code),
       });
     } finally {
       setSigningOut(false);

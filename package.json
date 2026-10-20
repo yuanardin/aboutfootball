@@ -8,8 +8,9 @@
     "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test \"src/**/*.test.ts\""
   },
   "dependencies": {
     "@genkit-ai/google-genai": "^1.20.0",
@@ -44,7 +45,7 @@
     "firebase": "^11.10.0",
     "genkit": "^1.20.0",
     "lucide-react": "^0.475.0",
-    "next": "15.5.9",
+    "next": "15.5.28",
     "patch-package": "^8.0.0",
     "react": "^19.2.1",
     "react-day-picker": "^9.11.3",
@@ -52,15 +53,19 @@
     "react-hook-form": "^7.54.2",
     "recharts": "^2.15.1",
     "server-only": "^0.0.1",
+    "sharp": "0.35.5",
     "tailwind-merge": "^3.0.1",
     "tailwindcss-animate": "^1.0.7",
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.7",
     "@types/node": "^20",
     "@types/react": "^19.2.1",
     "@types/react-dom": "^19.2.1",
     "cross-env": "^7.0.3",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^15.5.28",
     "genkit-cli": "^1.20.0",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
@@ -70,6 +75,6 @@
     "@firebase/util@1.12.0": true,
     "esbuild@0.25.10": true,
     "protobufjs@7.5.4": true,
-    "sharp@0.34.5": true
+    "sharp@0.35.5": true
   }
 }
