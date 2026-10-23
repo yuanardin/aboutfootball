@@ -16,7 +16,7 @@ export function NewsCard({ article, featured = false, priority = false }: NewsCa
   return (
     <article
       className={cn(
-        'group relative overflow-hidden rounded-xl border border-border bg-card shadow-card transition duration-200',
+        'group relative min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-card transition duration-200',
         'hover:border-primary/40 hover:shadow-lift',
         featured && 'md:grid md:grid-cols-[1.18fr_1fr]'
       )}
