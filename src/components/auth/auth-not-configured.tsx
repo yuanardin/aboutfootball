@@ -2,17 +2,9 @@
 
 import { LockKeyhole } from 'lucide-react';
 import { CardContent } from '@/components/ui/card';
+import { getMissingFirebaseEnvKeys } from '@/firebase/config';
 
-const REQUIRED_FIREBASE_KEYS = [
-  { name: 'NEXT_PUBLIC_FIREBASE_API_KEY', present: Boolean(process.env.NEXT_PUBLIC_FIREBASE_API_KEY) },
-  { name: 'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN', present: Boolean(process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN) },
-  { name: 'NEXT_PUBLIC_FIREBASE_PROJECT_ID', present: Boolean(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) },
-  { name: 'NEXT_PUBLIC_FIREBASE_APP_ID', present: Boolean(process.env.NEXT_PUBLIC_FIREBASE_APP_ID) },
-];
-
-const missingKeys = REQUIRED_FIREBASE_KEYS.filter((entry) => !entry.present).map(
-  (entry) => entry.name
-);
+const missingKeys = getMissingFirebaseEnvKeys();
 
 export function AuthNotConfigured({ mode }: { mode: 'login' | 'register' }) {
   const action = mode === 'login' ? 'sign in' : 'sign up';
