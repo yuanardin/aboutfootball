@@ -105,12 +105,12 @@ export function HomeClient({
     <div className="pb-20">
       {/* Hero */}
       <section className="page-shell pt-10 sm:pt-16">
-        <div className="grid items-center gap-10 lg:grid-cols-[1fr_1.2fr]">
-          <div>
+        <div className="grid min-w-0 items-center gap-10 lg:grid-cols-[1fr_1.2fr]">
+          <div className="min-w-0">
             <span className="chip h-8 border-primary/30 bg-primary/10 px-3 text-xs font-semibold text-primary">
               Matchday HQ
             </span>
-            <h1 className="text-display mt-5">
+            <h1 className="text-display mt-5 max-w-full break-words">
               The beautiful game, <span className="text-primary">at a glance.</span>
             </h1>
             <p className="mt-5 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
@@ -143,7 +143,7 @@ export function HomeClient({
                 id="global-search"
                 type="search"
                 placeholder="Search news..."
-                className="input-surface h-12 rounded-lg pl-12 pr-24 text-base"
+                className="input-surface h-12 rounded-lg px-12 text-base sm:pr-24"
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
                 aria-label="Search football news"

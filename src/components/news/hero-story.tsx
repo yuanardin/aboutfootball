@@ -13,7 +13,7 @@ export function HeroStory({ article }: { article: NewsArticle }) {
   const category = article.category ?? 'Football';
 
   return (
-    <article className="group relative overflow-hidden rounded-xl border border-border bg-card shadow-lift">
+    <article className="group relative min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-lift">
       {article.articleUrl && (
         <Link
           href={article.articleUrl}
